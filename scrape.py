@@ -6,7 +6,7 @@ from urllib.error import URLError, HTTPError
 
 # Constants
 API_BASE_URL = "https://api.henleypassportindex.com/api/v3"
-DB_NAME = "data/passport.db"
+DB_NAME = "data/passportindex.db"
 
 
 def create_database():
@@ -63,11 +63,78 @@ def fetch_data(url):
 
 
 def fetch_countries():
+    """
+    Fetches the list of all countries from the Henley Passport Index API.
+
+    Returns:
+    list: A list of dictionaries, each containing country information.
+
+    Example response:
+    [
+        {
+            "code": "AF",
+            "country": "Afghanistan",
+            "has_data": true,
+            "region": "ASIA",
+            "visa_free_count": 26,
+            "openness": 22.61,
+            "visa_free_url": "https://cdn.henleyglobal.com/storage/app/media/HPI/AF_visa_free.pdf",
+            "visa_required_url": "https://cdn.henleyglobal.com/storage/app/media/HPI/AF_visa_required.pdf",
+            "visa_full_url": "https://cdn.henleyglobal.com/storage/app/media/HPI/AF_visa_full.pdf",
+            "flags": {
+                "is_cbi": 0,
+                "is_rbi": 0
+            },
+            "data": {
+                "2021": {"rank": 116, "visa_free_count": 26},
+                "2020": {"rank": 106, "visa_free_count": 26},
+                // ... more years ...
+            }
+        },
+        // ... more countries ...
+    ]
+    """
     data = fetch_data(f"{API_BASE_URL}/countries")
     return data.get("countries", [])
 
 
 def fetch_visa_single(country_code):
+    """
+    Fetches visa requirement data for a single country from the Henley Passport Index API.
+
+    Args:
+    country_code (str): The two-letter country code.
+
+    Returns:
+    dict: A dictionary containing visa requirement information for the specified country.
+
+    Example response:
+    {
+        "code": "SG",
+        "country": "Singapore",
+        "visa_free_access": [
+            {"code": "CN", "name": "China"},
+            {"code": "JP", "name": "Japan"},
+            // ... more countries ...
+        ],
+        "visa_required": [
+            {"code": "AF", "name": "Afghanistan"},
+            // ... more countries ...
+        ],
+        "electronic_travel_authorisation": [
+            {"code": "AU", "name": "Australia"},
+            // ... more countries ...
+        ],
+        "visa_on_arrival": [
+            {"code": "BH", "name": "Bahrain"},
+            // ... more countries ...
+        ],
+        "visa_online": [
+            {"code": "IN", "name": "India"},
+            // ... more countries ...
+        ]
+    }
+    """
     return fetch_data(f"{API_BASE_URL}/visa-single/{country_code}")
 
 
@@ -114,7 +181,7 @@ def insert_visa_requirements(country_code, visa_data):
         current_date = datetime.now().date().isoformat()
 
         for req_type, countries in visa_data.items():
-            if req_type in ("code", "country") and isinstance(countries, list):
+            if req_type in ("code", "country"):
                 continue
 
             for destination in countries:

@@ -1,15 +1,99 @@
 {
-    "title": "Passport Index",
+    "title": "Passport Index Database",
     "description": "Tracking historical changes in passport rankings and visa requirements.",
-    "about": "Made by jerrynsh.com",
-    "about_url": "https://jerrynsh.com/",
     "license": "MIT",
-    "license_url": "https://github.com/ngshiheng/passportdb/blob/main/LICENSE",
-    "source": "The Henley Passport Index",
+    "license_url": "https://opensource.org/licenses/MIT",
+    "source": "Henley Passport Index",
     "source_url": "https://www.henleyglobal.com/passport-index",
+    "databases": {
+        "passport": {
+            "queries": {
+                "top_ranked_passports": {
+                    "sql": "SELECT c.name AS country, cr.year, cr.rank, cr.visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) ORDER BY cr.rank ASC LIMIT 10",
+                    "title": "Top 10 Ranked Passports",
+                    "description": "Shows the top 10 ranked passports based on the most recent year's data"
+                },
+                "visa_free_travel_trends": {
+                    "sql": "SELECT c.name AS country, cr.year, cr.visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE c.code IN (SELECT country_code FROM CountryRanking GROUP BY country_code HAVING COUNT(DISTINCT year) = (SELECT COUNT(DISTINCT year) FROM CountryRanking)) ORDER BY c.name, cr.year",
+                    "title": "Visa-Free Travel Trends",
+                    "description": "Displays the trend of visa-free travel count for countries over the years"
+                },
+                "most_improved_passports": {
+                    "sql": "WITH RankChanges AS (SELECT cr1.country_code, c.name AS country, cr1.year AS current_year, cr2.year AS previous_year, cr1.rank AS current_rank, cr2.rank AS previous_rank, cr1.rank - cr2.rank AS rank_improvement FROM CountryRanking cr1 JOIN CountryRanking cr2 ON cr1.country_code = cr2.country_code AND cr1.year = cr2.year + 1 JOIN Country c ON cr1.country_code = c.code WHERE cr1.year = (SELECT MAX(year) FROM CountryRanking)) SELECT country, current_year, previous_year, current_rank, previous_rank, rank_improvement FROM RankChanges ORDER BY rank_improvement DESC LIMIT 10",
+                    "title": "Most Improved Passports",
+                    "description": "Lists the top 10 countries with the most improved passport rankings from the previous year to the current year"
+                },
+                "visa_requirements_summary": {
+                    "sql": "SELECT requirement_type, COUNT(*) AS count FROM VisaRequirement WHERE effective_date = (SELECT MAX(effective_date) FROM VisaRequirement) GROUP BY requirement_type ORDER BY count DESC",
+                    "title": "Visa Requirements Summary",
+                    "description": "Provides a summary of different types of visa requirements and their frequencies"
+                },
+                "countries_by_region": {
+                    "sql": "SELECT region, COUNT(*) AS country_count FROM Country WHERE region IS NOT NULL GROUP BY region ORDER BY country_count DESC",
+                    "title": "Countries by Region",
+                    "description": "Shows the distribution of countries across different regions"
+                },
+                "visa_free_access": {
+                    "sql": "SELECT c.name AS country, COUNT(*) AS visa_free_count FROM Country c JOIN VisaRequirement vr ON c.code = vr.from_country WHERE vr.requirement_type IN ('visa_free_access', 'visa_on_arrival', 'electronic_travel_authorisation') AND vr.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement) GROUP BY c.code ORDER BY visa_free_count DESC LIMIT 20",
+                    "title": "Top 20 Countries with Most Visa-Free Access",
+                    "description": "Lists the top 20 countries with the highest number of visa-free or visa-on-arrival destinations"
+                },
+                "regional_passport_strength": {
+                    "sql": "SELECT c.region, AVG(cr.visa_free_count) AS avg_visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) GROUP BY c.region ORDER BY avg_visa_free_count DESC",
+                    "title": "Regional Passport Strength",
+                    "description": "Compares average visa-free counts by region for the most recent year"
+                },
+                "visa_requirement_changes": {
+                    "sql": "SELECT vr.requirement_type, COUNT(*) AS count, strftime('%Y', vr.effective_date) AS year FROM VisaRequirement vr GROUP BY vr.requirement_type, year ORDER BY year, requirement_type",
+                    "title": "Visa Requirement Changes Over Time",
+                    "description": "Analyzes how visa requirements have changed over the years"
+                },
+            },
+            "tables": {
+                "Country": {
+                    "sortable_columns": [
+                        "code",
+                        "name",
+                        "region"
+                    ],
+                    "facets": [
+                        "region"
+                    ],
+                    "description": "Information about countries included in the passport index"
+                },
+                "CountryRanking": {
+                    "sortable_columns": [
+                        "country_code",
+                        "year",
+                        "rank",
+                        "visa_free_count"
+                    ],
+                    "facets": [
+                        "year"
+                    ],
+                    "description": "Annual rankings and visa-free travel counts for countries"
+                },
+                "VisaRequirement": {
+                    "sortable_columns": [
+                        "from_country",
+                        "to_country",
+                        "effective_date",
+                        "requirement_type"
+                    ],
+                    "facets": [
+                        "requirement_type",
+                        "effective_date"
+                    ],
+                    "description": "Visa requirements between countries"
+                }
+            }
+        }
+    },
+    "about": "Passport Index Database",
+    "about_url": "",
     "plugins": {
-        "datasette-block-robots": {
-            "allow_only_index": true
+        "datasette-vega": {
+            "default": true
         }
     }
 }
