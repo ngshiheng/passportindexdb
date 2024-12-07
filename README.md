@@ -10,7 +10,6 @@ erDiagram
         TEXT code PK
         TEXT name
         TEXT region
-        INTEGER openness
     }
     CountryRanking {
         TEXT country_code FK
