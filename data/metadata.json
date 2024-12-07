@@ -19,7 +19,7 @@
                     "description": "Displays the trend of visa-free travel count for countries over the years"
                 },
                 "most_improved_passports": {
-                    "sql": "WITH RankChanges AS (SELECT cr1.country_code, c.name AS country, cr1.year AS current_year, cr2.year AS previous_year, cr1.rank AS current_rank, cr2.rank AS previous_rank, cr1.rank - cr2.rank AS rank_improvement FROM CountryRanking cr1 JOIN CountryRanking cr2 ON cr1.country_code = cr2.country_code AND cr1.year = cr2.year + 1 JOIN Country c ON cr1.country_code = c.code WHERE cr1.year = (SELECT MAX(year) FROM CountryRanking)) SELECT country, current_year, previous_year, current_rank, previous_rank, rank_improvement FROM RankChanges ORDER BY rank_improvement DESC LIMIT 10",
+                    "sql": "WITH RankChanges AS (SELECT cr1.country_code, c.name AS country, cr1.year AS current_year, cr2.year AS previous_year, cr1.rank AS current_rank, cr2.rank AS previous_rank, cr2.rank - cr1.rank AS rank_improvement FROM CountryRanking cr1 JOIN CountryRanking cr2 ON cr1.country_code = cr2.country_code AND cr1.year = cr2.year + 1 JOIN Country c ON cr1.country_code = c.code WHERE cr1.year = ( SELECT MAX(year) FROM CountryRanking)) SELECT country, current_year, previous_year, current_rank, previous_rank, rank_improvement FROM RankChanges ORDER BY rank_improvement DESC LIMIT 10",
                     "title": "Most Improved Passports",
                     "description": "Lists the top 10 countries with the most improved passport rankings from the previous year to the current year"
                 },
