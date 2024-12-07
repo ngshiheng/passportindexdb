@@ -6,7 +6,7 @@
     "source": "Henley Passport Index",
     "source_url": "https://www.henleyglobal.com/passport-index",
     "databases": {
-        "passport": {
+        "passportindex": {
             "queries": {
                 "top_ranked_passports": {
                     "sql": "SELECT c.name AS country, cr.year, cr.rank, cr.visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) ORDER BY cr.rank ASC LIMIT 10",
@@ -32,11 +32,6 @@
                     "sql": "SELECT region, COUNT(*) AS country_count FROM Country WHERE region IS NOT NULL GROUP BY region ORDER BY country_count DESC",
                     "title": "Countries by Region",
                     "description": "Shows the distribution of countries across different regions"
-                },
-                "visa_free_access": {
-                    "sql": "SELECT c.name AS country, COUNT(*) AS visa_free_count FROM Country c JOIN VisaRequirement vr ON c.code = vr.from_country WHERE vr.requirement_type IN ('visa_free_access', 'visa_on_arrival', 'electronic_travel_authorisation') AND vr.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement) GROUP BY c.code ORDER BY visa_free_count DESC LIMIT 20",
-                    "title": "Top 20 Countries with Most Visa-Free Access",
-                    "description": "Lists the top 20 countries with the highest number of visa-free or visa-on-arrival destinations"
                 },
                 "regional_passport_strength": {
                     "sql": "SELECT c.region, AVG(cr.visa_free_count) AS avg_visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) GROUP BY c.region ORDER BY avg_visa_free_count DESC",

@@ -4,7 +4,7 @@ from datetime import datetime
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 
-# Constants
+
 API_BASE_URL = "https://api.henleypassportindex.com/api/v3"
 DB_NAME = "data/passportindex.db"
 
@@ -45,11 +45,6 @@ def create_database():
         )
         """)
 
-        # cursor.execute("""
-        # CREATE INDEX IF NOT EXISTS idx_visa_requirement
-        # ON VisaRequirement(from_country, to_country, effective_date)
-        # """)
-
 
 def fetch_data(url):
     try:
@@ -65,6 +60,9 @@ def fetch_data(url):
 def fetch_countries():
     """
     Fetches the list of all countries from the Henley Passport Index API.
+
+    Example:
+    https://api.henleypassportindex.com/api/v3/countries
 
     Returns:
     list: A list of dictionaries, each containing country information.
@@ -101,6 +99,9 @@ def fetch_countries():
 def fetch_visa_single(country_code):
     """
     Fetches visa requirement data for a single country from the Henley Passport Index API.
+
+    Example:
+    https://api.henleypassportindex.com/api/v3/visa-single/SG
 
     Args:
     country_code (str): The two-letter country code.
@@ -187,11 +188,26 @@ def insert_visa_requirements(country_code, visa_data):
             for destination in countries:
                 cursor.execute(
                     """
-                    INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
-                    VALUES (?, ?, ?, ?)
+                    SELECT id FROM VisaRequirement
+                    WHERE from_country = ? AND to_country = ? AND effective_date = ? AND requirement_type = ?
                     """,
                     (country_code, destination["code"], current_date, req_type),
                 )
+
+                existing_row = cursor.fetchone()
+
+                if existing_row is None:
+                    cursor.execute(
+                        """
+                        INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (country_code, destination["code"], current_date, req_type),
+                    )
+                else:
+                    print(
+                        f"Skipping duplicate entry for {country_code} to {destination['code']} ({req_type})"
+                    )
 
 
 def main():

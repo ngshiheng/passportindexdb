@@ -16,4 +16,4 @@ run:	## run scraper.
 .PHONY: datasette
 datasette:	## run datasette.
 	@if [ -z $(DATASETTE) ]; then echo "Datasette could not be found. See https://docs.datasette.io/en/stable/installation.html"; exit 2; fi
-	@$(DATASETTE) data/passport.db --metadata data/metadata.json
+	@$(DATASETTE) data/passportindex.db --metadata data/metadata.json
