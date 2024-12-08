@@ -6,28 +6,28 @@ Tracking historical changes in passport rankings and visa requirements.
 
 ```mermaid
 erDiagram
+    Country ||--o{ CountryRanking : has
+    Country ||--o{ VisaRequirement : "issues/receives"
+
     Country {
-        TEXT code PK
-        TEXT name
-        TEXT region
-    }
-    CountryRanking {
-        TEXT country_code FK
-        INTEGER year
-        INTEGER rank
-        INTEGER visa_free_count
-    }
-    VisaRequirement {
-        INTEGER id PK
-        TEXT from_country FK
-        TEXT to_country FK
-        DATE effective_date
-        TEXT requirement_type
+        text code PK
+        text name
+        text region
     }
 
-    Country ||--o{ CountryRanking : has
-    Country ||--o{ VisaRequirement : requires
-    Country ||--o{ VisaRequirement : allows
+    CountryRanking {
+        text country_code PK, FK
+        int year PK
+        int rank
+        int visa_free_count
+    }
+
+    VisaRequirement {
+        text from_country PK, FK
+        text to_country PK, FK
+        date effective_date PK
+        text requirement_type
+    }
 ```
 
 ## Usage
