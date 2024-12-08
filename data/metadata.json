@@ -2,7 +2,7 @@
     "title": "Passport Index Database",
     "description": "Tracking historical changes in passport rankings and visa requirements.",
     "license": "MIT",
-    "license_url": "https://opensource.org/licenses/MIT",
+    "license_url": "https://github.com/ngshiheng/passportindexdb/blob/main/LICENSE",
     "source": "Henley Passport Index",
     "source_url": "https://www.henleyglobal.com/passport-index",
     "databases": {
@@ -13,35 +13,30 @@
                     "title": "Top 10 Ranked Passports",
                     "description": "Shows the top 10 ranked passports based on the most recent year's data"
                 },
-                "visa_free_travel_trends": {
-                    "sql": "SELECT c.name AS country, cr.year, cr.visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE c.code IN (SELECT country_code FROM CountryRanking GROUP BY country_code HAVING COUNT(DISTINCT year) = (SELECT COUNT(DISTINCT year) FROM CountryRanking)) ORDER BY c.name, cr.year",
-                    "title": "Visa-Free Travel Trends",
-                    "description": "Displays the trend of visa-free travel count for countries over the years"
+                "passport_strength_trends": {
+                    "sql": "WITH recent_years AS (SELECT DISTINCT year FROM CountryRanking WHERE year >= (SELECT MAX(year) - 4 FROM CountryRanking)) SELECT c.name AS country, GROUP_CONCAT(cr.year || ':' || cr.visa_free_count, ', ') AS 'Visa-Free Count Trend (Year:Count)' FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code JOIN recent_years ry ON cr.year = ry.year GROUP BY c.code ORDER BY MAX(cr.visa_free_count) DESC LIMIT 20",
+                    "title": "Passport Strength Trends",
+                    "description": "Displays the trend of visa-free travel count for top 20 countries over the last 5 years"
                 },
                 "most_improved_passports": {
                     "sql": "WITH RankChanges AS (SELECT cr1.country_code, c.name AS country, cr1.year AS current_year, cr2.year AS previous_year, cr1.rank AS current_rank, cr2.rank AS previous_rank, cr2.rank - cr1.rank AS rank_improvement FROM CountryRanking cr1 JOIN CountryRanking cr2 ON cr1.country_code = cr2.country_code AND cr1.year = cr2.year + 1 JOIN Country c ON cr1.country_code = c.code WHERE cr1.year = ( SELECT MAX(year) FROM CountryRanking)) SELECT country, current_year, previous_year, current_rank, previous_rank, rank_improvement FROM RankChanges ORDER BY rank_improvement DESC LIMIT 10",
                     "title": "Most Improved Passports",
                     "description": "Lists the top 10 countries with the most improved passport rankings from the previous year to the current year"
                 },
-                "visa_requirements_summary": {
-                    "sql": "SELECT requirement_type, COUNT(*) AS count FROM VisaRequirement WHERE effective_date = (SELECT MAX(effective_date) FROM VisaRequirement) GROUP BY requirement_type ORDER BY count DESC",
-                    "title": "Visa Requirements Summary",
-                    "description": "Provides a summary of different types of visa requirements and their frequencies"
-                },
-                "countries_by_region": {
-                    "sql": "SELECT region, COUNT(*) AS country_count FROM Country WHERE region IS NOT NULL GROUP BY region ORDER BY country_count DESC",
-                    "title": "Countries by Region",
-                    "description": "Shows the distribution of countries across different regions"
-                },
                 "regional_passport_strength": {
-                    "sql": "SELECT c.region, AVG(cr.visa_free_count) AS avg_visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) GROUP BY c.region ORDER BY avg_visa_free_count DESC",
+                    "sql": "WITH recent_years AS (SELECT year FROM CountryRanking WHERE year >= (SELECT MAX(year) - 4 FROM CountryRanking) GROUP BY year), regional_yearly_avg AS (SELECT c.region, cr.year, ROUND(AVG(cr.visa_free_count), 0) AS avg_visa_free_count FROM CountryRanking cr JOIN Country c ON cr.country_code = c.code JOIN recent_years ry ON cr.year = ry.year GROUP BY c.region, cr.year) SELECT region, ROUND(AVG(avg_visa_free_count), 0) AS overall_avg_visa_free_count, GROUP_CONCAT(year || ':' || avg_visa_free_count, ', ') AS 'Yearly Avg (Year:Count)' FROM regional_yearly_avg GROUP BY region ORDER BY overall_avg_visa_free_count DESC",
                     "title": "Regional Passport Strength",
-                    "description": "Compares average visa-free counts by region for the most recent year"
+                    "description": "Compares average visa-free counts by region for the last 5 years, showing overall average and yearly trends"
                 },
-                "visa_requirement_changes": {
-                    "sql": "SELECT vr.requirement_type, COUNT(*) AS count, strftime('%Y', vr.effective_date) AS year FROM VisaRequirement vr GROUP BY vr.requirement_type, year ORDER BY year, requirement_type",
-                    "title": "Visa Requirement Changes Over Time",
-                    "description": "Analyzes how visa requirements have changed over the years"
+                "visa_requirement_trends": {
+                    "sql": "WITH yearly_requirements AS (SELECT strftime('%Y', effective_date) AS year, requirement_type, COUNT(*) AS count FROM VisaRequirement GROUP BY year, requirement_type), total_yearly AS (SELECT year, SUM(count) AS total FROM yearly_requirements GROUP BY year), visa_free_yearly AS (SELECT year, COALESCE(SUM(CASE WHEN requirement_type = 'visa free' THEN count ELSE 0 END), 0) AS visa_free_count FROM yearly_requirements GROUP BY year) SELECT ty.year, vy.visa_free_count, ty.total, ROUND(CAST(vy.visa_free_count AS FLOAT) / ty.total * 100, 2) AS visa_free_percentage FROM total_yearly ty JOIN visa_free_yearly vy ON ty.year = vy.year ORDER BY ty.year",
+                    "title": "Visa Requirement Trends",
+                    "description": "Analyzes the trend of visa policies over the years, showing the count and percentage of visa-free requirements"
+                },
+                "visa_requirement_reciprocity": {
+                    "sql": "WITH LatestRequirements AS (SELECT from_country, to_country, requirement_type, ROW_NUMBER() OVER (PARTITION BY from_country, to_country ORDER BY effective_date DESC) as rn FROM VisaRequirement), NonReciprocal AS (SELECT lr1.from_country, lr1.to_country FROM LatestRequirements lr1 JOIN LatestRequirements lr2 ON lr1.from_country = lr2.to_country AND lr1.to_country = lr2.from_country WHERE lr1.requirement_type != lr2.requirement_type AND lr1.rn = 1 AND lr2.rn = 1) SELECT c.name AS Country, COUNT(*) AS NonReciprocal_Count, GROUP_CONCAT(c2.name, ', ') AS NonReciprocal_With FROM NonReciprocal nr JOIN Country c ON nr.from_country = c.code JOIN Country c2 ON nr.to_country = c2.code GROUP BY nr.from_country ORDER BY NonReciprocal_Count DESC LIMIT 20",
+                    "title": "Visa Requirement Reciprocity Summary",
+                    "description": "Summarizes non-reciprocal visa requirements by country, showing the count and list of countries with non-reciprocal requirements. Non-reciprocal visa relationships refer to situations where two countries have different visa requirements for each other's citizens."
                 }
             },
             "tables": {
