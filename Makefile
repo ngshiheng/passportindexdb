@@ -24,4 +24,4 @@ datasette:	## run datasette.
 deploy:		## deploy to vercel.
 	@[ -f $(SQLITE_FILE) ] && echo "File $(SQLITE_FILE) exists." || { echo "File $(SQLITE_FILE) does not exist." >&2; exit 1; }
 	@if [ -z $(DATASETTE) ]; then echo "Datasette could not be found. See https://docs.datasette.io/en/stable/installation.html"; exit 2; fi
-	@$(DATASETTE) publish vercel $(SQLITE_FILE) --project=passportindexdb --install=datasette-hashed-urls --install=datasette-cluster-map --install=datasette-block-robots --token=$$VERCEL_TOKEN --metadata data/metadata.json --setting allow_download off --setting allow_csv_stream off --extra-options "-i"
+	@$(DATASETTE) publish vercel $(SQLITE_FILE) --project=passportindexdb --install=datasette-hashed-urls --install=datasette-block-robots --token=$$VERCEL_TOKEN --metadata data/metadata.json --setting allow_download off --setting allow_csv_stream off --extra-options "-i"
