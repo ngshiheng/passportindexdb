@@ -81,6 +81,9 @@
                         "effective_date"
                     ],
                     "description": "Visa requirements between countries"
+                },
+                "sqlite_sequence": {
+                    "hidden": true
                 }
             }
         }
