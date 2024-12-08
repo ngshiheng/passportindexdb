@@ -176,7 +176,7 @@ def insert_country_data(country):
             )
 
 
-def insert_visa_requirements(country_code, visa_data):
+def insert_visa_requirements(from_country_code, visa_data):
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         current_date = datetime.now().date().isoformat()
@@ -185,28 +185,36 @@ def insert_visa_requirements(country_code, visa_data):
             if req_type in ("code", "country"):
                 continue
 
-            for destination in countries:
+            for to_country in countries:
                 cursor.execute(
                     """
-                    SELECT id FROM VisaRequirement
-                    WHERE from_country = ? AND to_country = ? AND effective_date = ? AND requirement_type = ?
+                    SELECT requirement_type
+                    FROM VisaRequirement
+                    WHERE from_country = ? AND to_country = ?
+                    ORDER BY effective_date DESC
+                    LIMIT 1
                     """,
-                    (country_code, destination["code"], current_date, req_type),
+                    (from_country_code, to_country["code"]),
                 )
 
-                existing_row = cursor.fetchone()
+                result = cursor.fetchone()
 
-                if existing_row is None:
+                if result is None or result[0] != req_type:
+                    # Insert new row only if requirement type has changed or it's a new entry
                     cursor.execute(
                         """
                         INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
                         VALUES (?, ?, ?, ?)
                         """,
-                        (country_code, destination["code"], current_date, req_type),
+                        (
+                            from_country_code,
+                            to_country["code"],
+                            current_date,
+                            req_type,
+                        ),
                     )
-                else:
                     print(
-                        f"Skipping duplicate entry for {country_code} to {destination['code']} ({req_type})"
+                        f"Inserted new requirement: {from_country_code} to {to_country['code']} ({req_type})"
                     )
 
 
