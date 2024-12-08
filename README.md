@@ -2,6 +2,36 @@
 
 Tracking historical changes in passport rankings and visa requirements.
 
+## How This Works
+
+```mermaid
+graph TB
+	subgraph Vercel
+        deployment[Datasette]
+        class deployment vercel;
+    end
+
+    subgraph GitHub
+        subgraph Actions
+            scraper[scrape.py]
+        end
+        subgraph Artifacts
+            db[(passportindex.db)]
+            class db artifacts;
+        end
+    end
+
+    subgraph Henley Passport Index
+        api[API]
+    end
+
+    db --> |1: Download| scraper
+    api --> |2: Fetch Data| scraper
+    scraper --> |3: Upload| db
+    scraper --> |4: Publish| deployment
+    deployment --> |5: View/Access Data| client[User]
+```
+
 ## Database Schema
 
 ```mermaid
