@@ -2,32 +2,62 @@
 
 Tracking historical changes in passport rankings and visa requirements.
 
+## How This Works
+
+```mermaid
+graph TB
+	subgraph Vercel
+        deployment[Datasette]
+        class deployment vercel;
+    end
+
+    subgraph GitHub
+        subgraph Actions
+            scraper[scrape.py]
+        end
+        subgraph Artifacts
+            db[(passportindex.db)]
+            class db artifacts;
+        end
+    end
+
+    subgraph Henley Passport Index
+        api[API]
+    end
+
+    db --> |1: Download| scraper
+    api --> |2: Fetch Data| scraper
+    scraper --> |3: Upload| db
+    scraper --> |4: Publish| deployment
+    deployment --> |5: View/Access Data| client[User]
+```
+
 ## Database Schema
 
 ```mermaid
 erDiagram
+    Country ||--o{ CountryRanking : has
+    Country ||--o{ VisaRequirement : "issues/receives"
+
     Country {
-        TEXT code PK
-        TEXT name
-        TEXT region
-    }
-    CountryRanking {
-        TEXT country_code FK
-        INTEGER year
-        INTEGER rank
-        INTEGER visa_free_count
-    }
-    VisaRequirement {
-        INTEGER id PK
-        TEXT from_country FK
-        TEXT to_country FK
-        DATE effective_date
-        TEXT requirement_type
+        text code PK
+        text name
+        text region
     }
 
-    Country ||--o{ CountryRanking : has
-    Country ||--o{ VisaRequirement : requires
-    Country ||--o{ VisaRequirement : allows
+    CountryRanking {
+        text country_code PK, FK
+        int year PK
+        int rank
+        int visa_free_count
+    }
+
+    VisaRequirement {
+        text from_country PK, FK
+        text to_country PK, FK
+        date effective_date PK
+        text requirement_type
+    }
 ```
 
 ## Usage

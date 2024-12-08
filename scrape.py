@@ -35,11 +35,11 @@ def create_database():
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS VisaRequirement (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             from_country TEXT,
             to_country TEXT,
             effective_date DATE NOT NULL,
             requirement_type TEXT,
+            PRIMARY KEY (from_country, to_country, effective_date),
             FOREIGN KEY (from_country) REFERENCES Country(code),
             FOREIGN KEY (to_country) REFERENCES Country(code)
         )
@@ -206,26 +206,27 @@ def insert_visa_requirements(from_country_code, visa_data):
             for to_country in countries:
                 cursor.execute(
                     """
-                    INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
-                    SELECT ?, ?, ?, ?
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM VisaRequirement
-                        WHERE from_country = ? AND to_country = ? AND requirement_type = ?
-                        ORDER BY effective_date DESC
-                        LIMIT 1
-                    )
+                    SELECT requirement_type
+                    FROM VisaRequirement
+                    WHERE from_country = ? AND to_country = ?
+                    ORDER BY effective_date DESC
+                    LIMIT 1
                     """,
-                    (
-                        from_country_code,
-                        to_country["code"],
-                        current_date,
-                        req_type,
-                        from_country_code,
-                        to_country["code"],
-                        req_type,
-                    ),
+                    (from_country_code, to_country["code"]),
                 )
-                if cursor.rowcount > 0:
+
+                result = cursor.fetchone()
+
+                if result is None or result[0] != req_type:
+                    # NOTE: insert only if there's no previous record or the requirement type has changed
+                    cursor.execute(
+                        """
+                        INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (from_country_code, to_country["code"], current_date, req_type),
+                    )
+
                     insert_count += 1
                     print(
                         f"Inserted new requirement: {from_country_code} to {to_country['code']} ({req_type})"
