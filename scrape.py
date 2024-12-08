@@ -92,8 +92,10 @@ def fetch_countries():
         // ... more countries ...
     ]
     """
-    data = fetch_data(f"{API_BASE_URL}/countries")
-    return data.get("countries", [])
+    response = fetch_data(f"{API_BASE_URL}/countries")
+    data = response.get("countries", {})
+    print(f"Fetched {len(data)} countries")
+    return data
 
 
 def fetch_visa_single(country_code):
@@ -136,7 +138,9 @@ def fetch_visa_single(country_code):
         ]
     }
     """
-    return fetch_data(f"{API_BASE_URL}/visa-single/{country_code}")
+    response = fetch_data(f"{API_BASE_URL}/visa-single/{country_code}")
+    print(f"Fetched visa data for {country_code}")
+    return response
 
 
 def insert_country_data(country):
@@ -155,31 +159,45 @@ def insert_country_data(country):
             ),
         )
 
+        insert_count = 0
         ranking_data = country.get("data")
-        if isinstance(
-            ranking_data, list
-        ):  # NOTE: if a country does not have any ranking data, the API returns [] instead of {}
-            return
+
+        # NOTE: if a country does not have any ranking data, the API returns [] instead of {}
+        if isinstance(ranking_data, list):
+            return 0
 
         for year, data in ranking_data.items():
+            # Check if the record already exists
             cursor.execute(
-                """
-                INSERT OR REPLACE INTO CountryRanking (country_code, year, rank, visa_free_count)
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    country["code"],
-                    int(year),
-                    data.get("rank"),
-                    data.get("visa_free_count"),
-                ),
+                "SELECT 1 FROM CountryRanking WHERE country_code = ? AND year = ?",
+                (country["code"], int(year)),
             )
+            record_exists = cursor.fetchone() is not None
+            if not record_exists:
+                cursor.execute(
+                    """
+                    INSERT INTO CountryRanking (country_code, year, rank, visa_free_count)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        country["code"],
+                        int(year),
+                        data.get("rank"),
+                        data.get("visa_free_count"),
+                    ),
+                )
+
+                insert_count += 1
+                print(f"Inserted new ranking: {country['code']} ({year})")
+
+        return insert_count
 
 
 def insert_visa_requirements(from_country_code, visa_data):
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         current_date = datetime.now().date().isoformat()
+        insert_count = 0
 
         for req_type, countries in visa_data.items():
             if req_type in ("code", "country"):
@@ -188,48 +206,56 @@ def insert_visa_requirements(from_country_code, visa_data):
             for to_country in countries:
                 cursor.execute(
                     """
-                    SELECT requirement_type
-                    FROM VisaRequirement
-                    WHERE from_country = ? AND to_country = ?
-                    ORDER BY effective_date DESC
-                    LIMIT 1
-                    """,
-                    (from_country_code, to_country["code"]),
-                )
-
-                result = cursor.fetchone()
-
-                if result is None or result[0] != req_type:
-                    # Insert new row only if requirement type has changed or it's a new entry
-                    cursor.execute(
-                        """
-                        INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (
-                            from_country_code,
-                            to_country["code"],
-                            current_date,
-                            req_type,
-                        ),
+                    INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
+                    SELECT ?, ?, ?, ?
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM VisaRequirement
+                        WHERE from_country = ? AND to_country = ? AND requirement_type = ?
+                        ORDER BY effective_date DESC
+                        LIMIT 1
                     )
+                    """,
+                    (
+                        from_country_code,
+                        to_country["code"],
+                        current_date,
+                        req_type,
+                        from_country_code,
+                        to_country["code"],
+                        req_type,
+                    ),
+                )
+                if cursor.rowcount > 0:
+                    insert_count += 1
                     print(
                         f"Inserted new requirement: {from_country_code} to {to_country['code']} ({req_type})"
                     )
+
+        return insert_count
 
 
 def main():
     create_database()
     countries = fetch_countries()
 
+    new_country_ranking_count = 0
+    new_visa_requirement_count = 0
+
     for country in countries:
-        insert_country_data(country)
+        rankings = insert_country_data(country)
+        new_country_ranking_count += rankings
+
         visa_data = fetch_visa_single(country["code"])
         if visa_data:
-            insert_visa_requirements(country["code"], visa_data)
-            print(f"Processed {country['country']}")
+            new_visa_requirement_count += insert_visa_requirements(
+                country["code"], visa_data
+            )
         else:
             print(f"Failed to fetch visa data for {country['country']}")
+
+    print("\nSummary:")
+    print(f"New country rankings inserted: {new_country_ranking_count}")
+    print(f"New visa requirements inserted: {new_visa_requirement_count}")
 
 
 if __name__ == "__main__":

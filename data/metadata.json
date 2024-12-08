@@ -42,7 +42,7 @@
                     "sql": "SELECT vr.requirement_type, COUNT(*) AS count, strftime('%Y', vr.effective_date) AS year FROM VisaRequirement vr GROUP BY vr.requirement_type, year ORDER BY year, requirement_type",
                     "title": "Visa Requirement Changes Over Time",
                     "description": "Analyzes how visa requirements have changed over the years"
-                },
+                }
             },
             "tables": {
                 "Country": {
@@ -70,6 +70,7 @@
                 },
                 "VisaRequirement": {
                     "sortable_columns": [
+                        "id",
                         "from_country",
                         "to_country",
                         "effective_date",
