@@ -9,9 +9,12 @@ API_BASE_URL = "https://api.henleypassportindex.com/api/v3"
 DB_NAME = "data/passportindex.db"
 
 
-def create_database():
+def setup_database():
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
+
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA busy_timeout = 5000;")
 
         # Create tables
         cursor.execute("""
@@ -236,7 +239,7 @@ def insert_visa_requirements(from_country_code, visa_data):
 
 
 def main():
-    create_database()
+    setup_database()
     countries = fetch_countries()
 
     new_country_ranking_count = 0
