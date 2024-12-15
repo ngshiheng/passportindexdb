@@ -1,4 +1,5 @@
 PYTHON := $(shell command -v python 2> /dev/null)
+DOCKER := $(shell command -v docker 2> /dev/null)
 DATASETTE := $(shell command -v datasette 2> /dev/null)
 SQLITE_FILE = data/passportindex.db
 
