@@ -6,9 +6,9 @@ Tracking historical changes in passport rankings and visa requirements.
 
 ```mermaid
 graph TB
-	subgraph Vercel
+	subgraph Railway
         deployment[Datasette]
-        class deployment vercel;
+        class deployment railway;
     end
 
     subgraph GitHub
