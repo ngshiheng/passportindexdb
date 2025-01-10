@@ -7,6 +7,8 @@ on:
         paths:
             - "**.py"
             - ".github/workflows/**"
+            - Makefile
+
     workflow_dispatch: # This allows us to trigger manually from the GitHub Actions UI
     schedule:
         - cron: "0 0 1,15 * *" # Scheduled at 00:00 on day-of-month 1 and 15
