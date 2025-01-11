@@ -16,7 +16,6 @@ def setup_database():
         cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.execute("PRAGMA busy_timeout = 5000;")
 
-        # Create tables
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS Country (
             code TEXT PRIMARY KEY,
