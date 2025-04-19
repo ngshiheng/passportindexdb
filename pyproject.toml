@@ -1,7 +1,0 @@
-[project]
-description = "Tracking historical changes in passport rankings and visa requirements."
-name = "passportindexdb"
-version = "0.1.0"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []

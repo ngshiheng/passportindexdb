@@ -34,7 +34,7 @@ docker-build:	## build datasette docker image.
 	datasette package $(SQLITE_FILE) --extra-options '--setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000' --metadata data/metadata.json --install=datasette-hashed-urls --install=datasette-block-robots --install=datasette-vega --tag $(IMAGE_NAME):latest
 
 .PHONY: docker-push
-docker-push:	## build and push docker images to registry.
+docker-push:	## build and push docker image to registry.
 	@if [ -z $(DOCKER) ]; then echo "Docker could not be found. See https://docs.docker.com/get-docker/"; exit 2; fi
 	docker push $(IMAGE_NAME):$(TAG_DATE)
 	docker push $(IMAGE_NAME):latest
