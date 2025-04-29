@@ -8,6 +8,7 @@ on:
             - "**.py"
             - ".github/workflows/**"
             - Makefile
+            - data/metadata.json
 
     workflow_dispatch: # This allows us to trigger manually from the GitHub Actions UI
     schedule:
