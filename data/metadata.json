@@ -8,40 +8,62 @@
     "databases": {
         "passportindex": {
             "queries": {
-                "top_ranked_passports": {
-                    "sql": "SELECT c.name AS country, cr.year, cr.rank, cr.visa_free_count FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code WHERE cr.year = (SELECT MAX(year) FROM CountryRanking) ORDER BY cr.rank ASC LIMIT 10",
-                    "title": "Top 10 Ranked Passports",
-                    "description": "Shows the top 10 ranked passports based on the most recent year's data"
+                "strongest_passports": {
+                    "sql": "SELECT c.name as country, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank ASC\nLIMIT 20",
+                    "title": "Countries with Strongest Passports",
+                    "description": "Shows the top 20 countries with the most powerful passports based on ranking and visa-free access",
+                    "params": [
+                        "year"
+                    ]
                 },
-                "passport_strength_trends": {
-                    "sql": "WITH recent_years AS (SELECT DISTINCT year FROM CountryRanking WHERE year >= (SELECT MAX(year) - 4 FROM CountryRanking)) SELECT c.name AS country, GROUP_CONCAT(cr.year || ':' || cr.visa_free_count, ', ') AS 'Visa-Free Count Trend (Year:Count)' FROM Country c JOIN CountryRanking cr ON c.code = cr.country_code JOIN recent_years ry ON cr.year = ry.year GROUP BY c.code ORDER BY MAX(cr.visa_free_count) DESC LIMIT 20",
-                    "title": "Passport Strength Trends",
-                    "description": "Displays the trend of visa-free travel count for top 20 countries over the last 5 years"
+                "weakest_passports": {
+                    "sql": "SELECT c.name as country, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank DESC\nLIMIT 20",
+                    "title": "Countries with Weakest Passports",
+                    "description": "Shows the 20 countries with the most restricted passports based on ranking and visa-free access",
+                    "params": [
+                        "year"
+                    ]
                 },
-                "most_improved_passports": {
-                    "sql": "WITH RankChanges AS ( SELECT cr1.country_code, c.name AS country, cr2.year AS previous_year, cr2.rank AS previous_rank, cr1.year AS current_year, cr1.rank AS current_rank, cr2.rank - cr1.rank AS rank_improvement FROM CountryRanking cr1 JOIN CountryRanking cr2 ON cr1.country_code = cr2.country_code AND cr1.year = cr2.year + 1 JOIN Country c ON cr1.country_code = c.code WHERE cr1.year = ( SELECT MAX(year) FROM CountryRanking ) ) SELECT country, previous_year, previous_rank, current_year, current_rank, rank_improvement FROM RankChanges ORDER BY rank_improvement DESC LIMIT 10;",
-                    "title": "Most Improved Passports",
-                    "description": "Lists the top 10 countries with the most improved passport rankings from the previous year to the current year"
+                "visa_reciprocity": {
+                    "sql": "WITH reciprocity AS (\n  SELECT \n    c1.name as from_country,\n    c2.name as to_country,\n    vr1.requirement_type as outbound_requirement,\n    vr2.requirement_type as inbound_requirement,\n    CASE WHEN vr1.requirement_type = vr2.requirement_type THEN 'Reciprocal' ELSE 'Non-reciprocal' END as relationship,\n    vr1.effective_date\n  FROM VisaRequirement vr1\n  JOIN VisaRequirement vr2 ON vr1.from_country = vr2.to_country AND vr1.to_country = vr2.from_country\n  JOIN Country c1 ON vr1.from_country = c1.code\n  JOIN Country c2 ON vr1.to_country = c2.code\n  WHERE vr1.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr1.from_country AND to_country = vr1.to_country)\n  AND vr2.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr2.from_country AND to_country = vr2.to_country)\n  AND (COALESCE(NULLIF(:from_country, ''), 'SG') = vr1.from_country)\n  AND (:to_country IS NULL OR :to_country = '' OR vr1.to_country = :to_country)\n)\nSELECT from_country, to_country, outbound_requirement, inbound_requirement, relationship, effective_date\nFROM reciprocity\nORDER BY from_country, to_country",
+                    "title": "Visa Reciprocity Analysis",
+                    "description": "Compares visa requirements between pairs of countries to identify reciprocal and non-reciprocal relationships. Default to Singapore (SG).",
+                    "params": [
+                        "from_country",
+                        "to_country"
+                    ]
                 },
-                "recent_visa_requirement_changes": {
-                    "sql": "WITH RankedRequirements AS (SELECT from_country, to_country, requirement_type, effective_date, ROW_NUMBER() OVER (PARTITION BY from_country, to_country ORDER BY effective_date DESC) AS rn FROM VisaRequirement), RecentChanges AS (SELECT r1.from_country, r1.to_country, r1.requirement_type AS new_requirement, r1.effective_date AS new_date, r2.requirement_type AS old_requirement, r2.effective_date AS old_date FROM RankedRequirements r1 JOIN RankedRequirements r2 ON r1.from_country = r2.from_country AND r1.to_country = r2.to_country AND r2.rn = 2 WHERE r1.rn = 1 AND r1.requirement_type != r2.requirement_type) SELECT c1.name AS from_country, c2.name AS to_country, rc.new_requirement, rc.new_date, rc.old_requirement, rc.old_date FROM RecentChanges rc JOIN Country c1 ON rc.from_country = c1.code JOIN Country c2 ON rc.to_country = c2.code ORDER BY rc.new_date DESC LIMIT 50",
-                    "title": "Recent Visa Requirement Changes",
-                    "description": "Shows the most recent changes in visa requirements between countries, comparing the latest requirement with the previous one. Only displays pairs where there has been a change."
+                "regional_visa_analysis": {
+                    "sql": "SELECT\n  c1.region as from_region,\n  c2.region as to_region,\n  vr.requirement_type,\n  COUNT(*) as count\nFROM VisaRequirement vr\nJOIN Country c1 ON vr.from_country = c1.code\nJOIN Country c2 ON vr.to_country = c2.code\nWHERE vr.effective_date = (\n  SELECT MAX(effective_date) FROM VisaRequirement \n  WHERE from_country = vr.from_country AND to_country = vr.to_country\n  AND (strftime('%Y', effective_date) = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END)\n)\nAND (:from_region IS NULL OR :from_region = '' OR c1.region = :from_region)\nAND (:to_region IS NULL OR :to_region = '' OR c2.region = :to_region)\nGROUP BY c1.region, c2.region, vr.requirement_type\nORDER BY c1.region, c2.region, count DESC",
+                    "title": "Regional Visa Requirement Patterns",
+                    "description": "Aggregates visa requirements between world regions to identify regional patterns and relationships",
+                    "params": [
+                        "year",
+                        "from_region",
+                        "to_region"
+                    ]
                 },
-                "visa_requirement_trends": {
-                    "sql": "WITH RECURSIVE years AS ( SELECT MIN(strftime('%Y', effective_date)) AS year FROM VisaRequirement UNION ALL SELECT CAST(year + 1 AS TEXT) FROM years WHERE year < strftime('%Y', CURRENT_DATE) ), latest_requirements AS ( SELECT y.year, vr.from_country, vr.to_country, vr.requirement_type, vr.effective_date, ROW_NUMBER() OVER ( PARTITION BY y.year, vr.from_country, vr.to_country ORDER BY vr.effective_date DESC ) as rn FROM years y CROSS JOIN VisaRequirement vr WHERE vr.effective_date <= date(y.year || '-12-31') ), yearly_aggregates AS ( SELECT year, requirement_type, COUNT(*) as count FROM latest_requirements WHERE rn = 1 GROUP BY year, requirement_type ), total_yearly AS ( SELECT year, SUM(count) as total FROM yearly_aggregates GROUP BY year ), visa_free_yearly AS ( SELECT year, COALESCE( SUM(CASE WHEN requirement_type = 'visa_free_access' THEN count ELSE 0 END), 0 ) as visa_free_count FROM yearly_aggregates GROUP BY year ) SELECT ty.year, vy.visa_free_count, ty.total, ROUND(CAST(vy.visa_free_count AS FLOAT) / ty.total * 100, 2) as visa_free_percentage FROM total_yearly ty JOIN visa_free_yearly vy ON ty.year = vy.year ORDER BY ty.year;",
-                    "title": "Visa Requirement Trends",
-                    "description": "Analyzes the trend of visa policies over the years, showing the count and percentage of visa-free requirements"
-                },
-                "visa_requirement_reciprocity": {
-                    "sql": "WITH LatestRequirements AS (SELECT from_country, to_country, requirement_type, ROW_NUMBER() OVER (PARTITION BY from_country, to_country ORDER BY effective_date DESC) as rn FROM VisaRequirement), NonReciprocal AS (SELECT lr1.from_country, lr1.to_country FROM LatestRequirements lr1 JOIN LatestRequirements lr2 ON lr1.from_country = lr2.to_country AND lr1.to_country = lr2.from_country WHERE lr1.requirement_type != lr2.requirement_type AND lr1.rn = 1 AND lr2.rn = 1) SELECT c.name AS Country, COUNT(*) AS NonReciprocal_Count, GROUP_CONCAT(c2.name, ', ') AS NonReciprocal_With FROM NonReciprocal nr JOIN Country c ON nr.from_country = c.code JOIN Country c2 ON nr.to_country = c2.code GROUP BY nr.from_country ORDER BY NonReciprocal_Count DESC LIMIT 20",
-                    "title": "Visa Requirement Reciprocity Summary",
-                    "description": "Summarizes non-reciprocal visa requirements by country, showing the count and list of countries with non-reciprocal requirements. Non-reciprocal visa relationships refer to situations where two countries have different visa requirements for each other's citizens."
+                "passport_strength_change": {
+                    "sql": "WITH yearly_ranks AS (\n  SELECT \n    c.name as country,\n    cr.year,\n    cr.rank,\n    cr.visa_free_count,\n    LAG(cr.rank) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_rank,\n    LAG(cr.visa_free_count) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_visa_free_count\n  FROM CountryRanking cr\n  JOIN Country c ON cr.country_code = c.code\n)\nSELECT \n  country,\n  year,\n  rank,\n  visa_free_count,\n  prev_rank,\n  prev_visa_free_count,\n  (prev_rank - rank) as rank_improvement,\n  (visa_free_count - prev_visa_free_count) as visa_free_increase\nFROM yearly_ranks\nWHERE prev_rank IS NOT NULL\nORDER BY year DESC, rank_improvement DESC",
+                    "title": "Passport Strength Changes Over Time",
+                    "description": "Tracks how countries' passport rankings and visa-free access have changed between years"
                 },
                 "regional_passport_strength": {
-                    "sql": "WITH recent_years AS (SELECT year FROM CountryRanking WHERE year >= (SELECT MAX(year) - 4 FROM CountryRanking) GROUP BY year), regional_yearly_avg AS (SELECT c.region, cr.year, ROUND(AVG(cr.visa_free_count), 0) AS avg_visa_free_count FROM CountryRanking cr JOIN Country c ON cr.country_code = c.code JOIN recent_years ry ON cr.year = ry.year GROUP BY c.region, cr.year) SELECT region, ROUND(AVG(avg_visa_free_count), 0) AS overall_avg_visa_free_count, GROUP_CONCAT(year || ':' || avg_visa_free_count, ', ') AS 'Yearly Avg (Year:Count)' FROM regional_yearly_avg GROUP BY region ORDER BY overall_avg_visa_free_count DESC",
-                    "title": "Regional Passport Strength",
-                    "description": "Compares average visa-free counts by region for the last 5 years, showing overall average and yearly trends"
+                    "sql": "SELECT \n  c.region,\n  cr.year,\n  ROUND(AVG(cr.rank), 2) as avg_rank,\n  ROUND(AVG(cr.visa_free_count), 2) as avg_visa_free_count,\n  MIN(cr.rank) as best_rank,\n  MAX(cr.visa_free_count) as max_visa_free_count,\n  COUNT(DISTINCT c.code) as countries_in_region\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE (:region IS NULL OR :region = '' OR c.region = :region)\n  AND cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nGROUP BY c.region, cr.year\nORDER BY cr.year DESC, avg_rank ASC",
+                    "title": "Regional Passport Strength Comparison",
+                    "description": "Compares average passport strength by world region, showing which regions have strongest access",
+                    "params": [
+                        "year",
+                        "region"
+                    ]
+                },
+                "visa_requirement_distribution": {
+                    "sql": "WITH selected_year AS (\n  SELECT CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END AS year\n),\nlatest_requirements AS (\n  SELECT vr.*, strftime('%Y', vr.effective_date) as year\n  FROM VisaRequirement vr\n  JOIN selected_year sy ON strftime('%Y', vr.effective_date) = sy.year\n  WHERE vr.effective_date = (\n    SELECT MAX(effective_date) FROM VisaRequirement\n    WHERE from_country = vr.from_country AND to_country = vr.to_country\n      AND strftime('%Y', effective_date) = sy.year\n  )\n)\nSELECT\n  year,\n  requirement_type,\n  COUNT(*) as count,\n  ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM latest_requirements), 2) as percentage\nFROM latest_requirements\nGROUP BY year, requirement_type\nORDER BY count DESC",
+                    "title": "Global Visa Requirement Distribution",
+                    "description": "Shows the distribution of different visa requirement types worldwide",
+                    "params": [
+                        "year"
+                    ]
                 }
             },
             "tables": {
