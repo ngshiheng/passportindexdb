@@ -48,6 +48,18 @@
                     "title": "Passport Strength Changes Over Time",
                     "description": "Tracks how countries' passport rankings and visa-free access have changed between years"
                 },
+                "visa_policy_changes": {
+                    "sql": "SELECT \n  strftime('%Y-%m', vr2.effective_date) as change_date,\n  c1.name as from_country,\n  c2.name as to_country,\n  vr1.requirement_type as old_requirement,\n  vr2.requirement_type as new_requirement,\n  CASE \n    WHEN vr1.requirement_type = 'visa_required' AND vr2.requirement_type IN ('visa_free', 'visa_on_arrival') THEN 'Liberalization'\n    WHEN vr1.requirement_type IN ('visa_free', 'visa_on_arrival') AND vr2.requirement_type = 'visa_required' THEN 'Restriction'\n    ELSE 'Policy Change'\n  END as change_type\nFROM VisaRequirement vr1\nJOIN VisaRequirement vr2 ON \n  vr1.from_country = vr2.from_country AND \n  vr1.to_country = vr2.to_country AND\n  vr2.effective_date > vr1.effective_date\nJOIN Country c1 ON vr1.from_country = c1.code\nJOIN Country c2 ON vr1.to_country = c2.code\nWHERE NOT EXISTS (\n  SELECT 1 FROM VisaRequirement vr3\n  WHERE vr3.from_country = vr1.from_country\n  AND vr3.to_country = vr1.to_country\n  AND vr3.effective_date > vr1.effective_date\n  AND vr3.effective_date < vr2.effective_date\n)\nAND vr1.requirement_type != vr2.requirement_type\nAND (:from_country IS NULL OR :from_country = '' OR vr1.from_country = :from_country)\nAND (:to_country IS NULL OR :to_country = '' OR vr1.to_country = :to_country)\nAND ((:year_from IS NULL OR :year_from = '') OR strftime('%Y', vr2.effective_date) >= :year_from)\nAND ((:year_to IS NULL OR :year_to = '') OR strftime('%Y', vr2.effective_date) <= :year_to)\nORDER BY vr2.effective_date DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
+                    "title": "Visa Policy Changes Over Time",
+                    "description": "Tracks significant historical changes in visa policies between countries, showing when requirements became more or less restrictive",
+                    "params": [
+                        "from_country",
+                        "to_country",
+                        "year_from",
+                        "year_to",
+                        "limit"
+                    ]
+                },
                 "regional_passport_strength": {
                     "sql": "SELECT \n  c.region,\n  cr.year,\n  ROUND(AVG(cr.rank), 2) as avg_rank,\n  ROUND(AVG(cr.visa_free_count), 2) as avg_visa_free_count,\n  MIN(cr.rank) as best_rank,\n  MAX(cr.visa_free_count) as max_visa_free_count,\n  COUNT(DISTINCT c.code) as countries_in_region\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE (:region IS NULL OR :region = '' OR c.region = :region)\n  AND cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nGROUP BY c.region, cr.year\nORDER BY cr.year DESC, avg_rank ASC",
                     "title": "Regional Passport Strength Comparison",
