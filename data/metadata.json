@@ -26,32 +26,6 @@
                         "limit"
                     ]
                 },
-                "regional_passport_strength": {
-                    "sql": "SELECT \n  c.region,\n  cr.year,\n  ROUND(AVG(cr.rank), 2) as avg_rank,\n  ROUND(AVG(cr.visa_free_count), 2) as avg_visa_free_count,\n  MIN(cr.rank) as best_rank,\n  MAX(cr.visa_free_count) as max_visa_free_count,\n  COUNT(DISTINCT c.code) as countries_in_region\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\n  AND cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nGROUP BY c.region, cr.year\nORDER BY cr.year DESC, avg_rank ASC",
-                    "title": "Passport Strength by Region",
-                    "description": "Compares passport strength across world regions. Lower avg_rank means stronger passports. Parameter: year=YYYY for historical data.",
-                    "params": [
-                        "year"
-                    ]
-                },
-                "passport_strength_change": {
-                    "sql": "WITH yearly_ranks AS (\n  SELECT \n    c.name as country,\n    c.code as country_code,\n    cr.year,\n    cr.rank,\n    cr.visa_free_count,\n    LAG(cr.rank) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_rank,\n    LAG(cr.visa_free_count) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_visa_free_count\n  FROM CountryRanking cr\n  JOIN Country c ON cr.country_code = c.code\n  WHERE (:country_code IS NULL OR :country_code = '' OR c.code = :country_code)\n)\nSELECT \n  country,\n  country_code,\n  year,\n  rank,\n  visa_free_count,\n  prev_rank,\n  prev_visa_free_count,\n  (prev_rank - rank) as rank_improvement,\n  (visa_free_count - prev_visa_free_count) as visa_free_increase\nFROM yearly_ranks\nWHERE prev_rank IS NOT NULL\nORDER BY year DESC, rank_improvement DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
-                    "title": "Passport Ranking Trends",
-                    "description": "Tracks year-over-year changes in passport rankings. Positive rank_improvement values show improvement. Parameter: country_code (e.g., 'SG', 'US') to filter by country.",
-                    "params": [
-                        "country_code",
-                        "limit"
-                    ]
-                },
-                "visa_requirement_distribution": {
-                    "sql": "WITH selected_year AS (\n  SELECT CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END AS year\n),\nlatest_requirements AS (\n  SELECT vr.*, strftime('%Y', vr.effective_date) as year\n  FROM VisaRequirement vr\n  JOIN selected_year sy ON strftime('%Y', vr.effective_date) = sy.year\n  WHERE vr.effective_date = (\n    SELECT MAX(effective_date) FROM VisaRequirement\n    WHERE from_country = vr.from_country AND to_country = vr.to_country\n      AND strftime('%Y', effective_date) = sy.year\n  )\n)\nSELECT\n  year,\n  requirement_type,\n  COUNT(*) as count,\n  ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM latest_requirements), 2) as percentage\nFROM latest_requirements\nGROUP BY year, requirement_type",
-                    "title": "Global Visa Types Overview",
-                    "description": "Shows the distribution of visa requirement types worldwide. Parameter: year=YYYY for historical data.",
-                    "params": [
-                        "year",
-                        "limit"
-                    ]
-                },
                 "visa_reciprocity": {
                     "sql": "WITH reciprocity AS (\n  SELECT \n    c1.name as from_country,\n    c2.name as to_country,\n    vr1.requirement_type as outbound_requirement,\n    vr2.requirement_type as inbound_requirement,\n    CASE WHEN vr1.requirement_type = vr2.requirement_type THEN 'Reciprocal' ELSE 'Non-reciprocal' END as relationship,\n    vr1.effective_date\n  FROM VisaRequirement vr1\n  JOIN VisaRequirement vr2 ON vr1.from_country = vr2.to_country AND vr1.to_country = vr2.from_country\n  JOIN Country c1 ON vr1.from_country = c1.code\n  JOIN Country c2 ON vr1.to_country = c2.code\n  WHERE vr1.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr1.from_country AND to_country = vr1.to_country)\n  AND vr2.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr2.from_country AND to_country = vr2.to_country)\n  AND (COALESCE(NULLIF(:from_country, ''), 'SG') = vr1.from_country)\n  AND (:to_country IS NULL OR :to_country = '' OR vr1.to_country = :to_country)\n)\nSELECT from_country, to_country, outbound_requirement, inbound_requirement, relationship, effective_date\nFROM reciprocity\nORDER BY from_country, to_country\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
                     "title": "Visa Reciprocity Check",
@@ -59,17 +33,6 @@
                     "params": [
                         "from_country",
                         "to_country",
-                        "limit"
-                    ]
-                },
-                "regional_visa_analysis": {
-                    "sql": "SELECT\n  c1.region as from_region,\n  c2.region as to_region,\n  vr.requirement_type,\n  COUNT(*) as count\nFROM VisaRequirement vr\nJOIN Country c1 ON vr.from_country = c1.code\nJOIN Country c2 ON vr.to_country = c2.code\nWHERE vr.effective_date = (\n  SELECT MAX(effective_date) FROM VisaRequirement \n  WHERE from_country = vr.from_country AND to_country = vr.to_country\n  AND (strftime('%Y', effective_date) = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END)\n)\nAND (:from_region IS NULL OR :from_region = '' OR c1.region = :from_region)\nAND (:to_region IS NULL OR :to_region = '' OR c2.region = :to_region)\nGROUP BY c1.region, c2.region, vr.requirement_type\nORDER BY c1.region, c2.region, count DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
-                    "title": "Region-to-Region Visa Patterns",
-                    "description": "Shows visa requirement patterns between world regions. Parameters: from_region and to_region (e.g., 'EUROPE', 'ASIA'), year=YYYY for historical data.",
-                    "params": [
-                        "year",
-                        "from_region",
-                        "to_region",
                         "limit"
                     ]
                 },
@@ -82,6 +45,43 @@
                         "to_country",
                         "year_from",
                         "year_to",
+                        "limit"
+                    ]
+                },
+                "visa_requirement_distribution": {
+                    "sql": "WITH selected_year AS (\n  SELECT CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END AS year\n),\nlatest_requirements AS (\n  SELECT vr.*, strftime('%Y', vr.effective_date) as req_year\n  FROM VisaRequirement vr\n  JOIN selected_year sy ON strftime('%Y', vr.effective_date) <= sy.year\n  WHERE vr.effective_date = (\n    SELECT MAX(effective_date) FROM VisaRequirement\n    WHERE from_country = vr.from_country AND to_country = vr.to_country\n      AND strftime('%Y', effective_date) <= sy.year\n  )\n)\nSELECT\n  (SELECT year FROM selected_year) as year,\n  requirement_type,\n  COUNT(*) as count,\n  ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM latest_requirements), 2) as percentage\nFROM latest_requirements\nGROUP BY requirement_type\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 20 ELSE :limit END",
+                    "title": "Global Visa Types Overview",
+                    "description": "Shows the distribution of visa requirement types worldwide as of the selected year. Parameter: year=YYYY to view state at that year (includes all previous requirements).",
+                    "params": [
+                        "year",
+                        "limit"
+                    ]
+                },
+                "passport_strength_change": {
+                    "sql": "WITH yearly_ranks AS (\n  SELECT \n    c.name as country,\n    c.code as country_code,\n    cr.year,\n    cr.rank,\n    cr.visa_free_count,\n    LAG(cr.rank) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_rank,\n    LAG(cr.visa_free_count) OVER (PARTITION BY cr.country_code ORDER BY cr.year) as prev_visa_free_count\n  FROM CountryRanking cr\n  JOIN Country c ON cr.country_code = c.code\n  WHERE (:country_code IS NULL OR :country_code = '' OR c.code = :country_code)\n)\nSELECT \n  country,\n  country_code,\n  year,\n  rank,\n  visa_free_count,\n  prev_rank,\n  prev_visa_free_count,\n  (prev_rank - rank) as rank_improvement,\n  (visa_free_count - prev_visa_free_count) as visa_free_increase\nFROM yearly_ranks\nWHERE prev_rank IS NOT NULL\nORDER BY year DESC, rank_improvement DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
+                    "title": "Passport Ranking Trends",
+                    "description": "Tracks year-over-year changes in passport rankings. Positive rank_improvement values show improvement. Parameter: country_code (e.g., 'SG', 'US') to filter by country.",
+                    "params": [
+                        "country_code",
+                        "limit"
+                    ]
+                },
+                "regional_passport_strength": {
+                    "sql": "SELECT \n  c.region,\n  cr.year,\n  ROUND(AVG(cr.rank), 2) as avg_rank,\n  ROUND(AVG(cr.visa_free_count), 2) as avg_visa_free_count,\n  MIN(cr.rank) as best_rank,\n  MAX(cr.visa_free_count) as max_visa_free_count,\n  COUNT(DISTINCT c.code) as countries_in_region\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\n  AND cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nGROUP BY c.region, cr.year\nORDER BY cr.year DESC, avg_rank ASC",
+                    "title": "Passport Strength by Region",
+                    "description": "Compares passport strength across world regions. Lower avg_rank means stronger passports. Parameter: year=YYYY for historical data.",
+                    "params": [
+                        "year"
+                    ]
+                },
+                "regional_visa_analysis": {
+                    "sql": "SELECT\n  c1.region as from_region,\n  c2.region as to_region,\n  vr.requirement_type,\n  COUNT(*) as count\nFROM VisaRequirement vr\nJOIN Country c1 ON vr.from_country = c1.code\nJOIN Country c2 ON vr.to_country = c2.code\nWHERE vr.effective_date = (\n  SELECT MAX(effective_date) FROM VisaRequirement \n  WHERE from_country = vr.from_country AND to_country = vr.to_country\n  AND (strftime('%Y', effective_date) = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(strftime('%Y', effective_date)) FROM VisaRequirement) ELSE :year END)\n)\nAND (:from_region IS NULL OR :from_region = '' OR c1.region = :from_region)\nAND (:to_region IS NULL OR :to_region = '' OR c2.region = :to_region)\nGROUP BY c1.region, c2.region, vr.requirement_type\nORDER BY c1.region, c2.region, count DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
+                    "title": "Region-to-Region Visa Patterns",
+                    "description": "Shows visa requirement patterns between world regions. Parameters: from_region and to_region (e.g., 'EUROPE', 'ASIA'), year=YYYY for historical data.",
+                    "params": [
+                        "year",
+                        "from_region",
+                        "to_region",
                         "limit"
                     ]
                 }
