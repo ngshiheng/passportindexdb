@@ -13,3 +13,6 @@ wheels/
 *.db
 *.db-shm
 *.db-wal
+
+# Datasette
+data/inspect.json
