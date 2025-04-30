@@ -9,7 +9,7 @@
         "passportindex": {
             "queries": {
                 "strongest_passports": {
-                    "sql": "SELECT c.name as country, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank ASC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 20 ELSE :limit END",
+                    "sql": "SELECT c.name as country, c.code as country_code, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank ASC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 20 ELSE :limit END",
                     "title": "Top Passport Rankings",
                     "description": "Shows countries with the strongest passports ranked by visa-free access. Default: top 20 countries for most recent year. Parameters: year=YYYY for historical data, limit=N to adjust results.",
                     "params": [
@@ -18,7 +18,7 @@
                     ]
                 },
                 "weakest_passports": {
-                    "sql": "SELECT c.name as country, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 20 ELSE :limit END",
+                    "sql": "SELECT c.name as country, c.code as country_code, cr.year, cr.rank, cr.visa_free_count\nFROM Country c\nJOIN CountryRanking cr ON c.code = cr.country_code\nWHERE cr.year = CASE WHEN :year IS NULL OR :year = '' THEN (SELECT MAX(year) FROM CountryRanking) ELSE :year END\nORDER BY cr.rank DESC\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 20 ELSE :limit END",
                     "title": "Bottom Passport Rankings",
                     "description": "Shows countries with the most restricted passport access. Default: 20 countries for most recent year. Parameters: year=YYYY for historical data, limit=N to adjust results.",
                     "params": [
@@ -27,7 +27,7 @@
                     ]
                 },
                 "visa_reciprocity": {
-                    "sql": "WITH reciprocity AS (\n  SELECT \n    c1.name as from_country,\n    c2.name as to_country,\n    vr1.requirement_type as outbound_requirement,\n    vr2.requirement_type as inbound_requirement,\n    CASE WHEN vr1.requirement_type = vr2.requirement_type THEN 'Reciprocal' ELSE 'Non-reciprocal' END as relationship,\n    vr1.effective_date\n  FROM VisaRequirement vr1\n  JOIN VisaRequirement vr2 ON vr1.from_country = vr2.to_country AND vr1.to_country = vr2.from_country\n  JOIN Country c1 ON vr1.from_country = c1.code\n  JOIN Country c2 ON vr1.to_country = c2.code\n  WHERE vr1.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr1.from_country AND to_country = vr1.to_country)\n  AND vr2.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr2.from_country AND to_country = vr2.to_country)\n  AND (COALESCE(NULLIF(:from_country, ''), 'MY') = vr1.from_country)\n  AND (:to_country IS NULL OR :to_country = '' OR vr1.to_country = :to_country)\n)\nSELECT from_country, to_country, outbound_requirement, inbound_requirement, relationship, effective_date\nFROM reciprocity\nORDER BY from_country, to_country\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
+                    "sql": "WITH reciprocity AS (\n  SELECT \n    c1.name as from_country,\n    c1.code as from_country_code,\n    c2.name as to_country,\n    c2.code as to_country_code,\n    vr1.requirement_type as outbound_requirement,\n    vr2.requirement_type as inbound_requirement,\n    CASE WHEN vr1.requirement_type = vr2.requirement_type THEN 'Reciprocal' ELSE 'Non-reciprocal' END as relationship,\n    vr1.effective_date\n  FROM VisaRequirement vr1\n  JOIN VisaRequirement vr2 ON vr1.from_country = vr2.to_country AND vr1.to_country = vr2.from_country\n  JOIN Country c1 ON vr1.from_country = c1.code\n  JOIN Country c2 ON vr1.to_country = c2.code\n  WHERE vr1.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr1.from_country AND to_country = vr1.to_country)\n  AND vr2.effective_date = (SELECT MAX(effective_date) FROM VisaRequirement WHERE from_country = vr2.from_country AND to_country = vr2.to_country)\n  AND (COALESCE(NULLIF(:from_country, ''), 'MY') = vr1.from_country)\n  AND (:to_country IS NULL OR :to_country = '' OR vr1.to_country = :to_country)\n)\nSELECT from_country, from_country_code, to_country, to_country_code, outbound_requirement, inbound_requirement, relationship, effective_date\nFROM reciprocity\nORDER BY from_country, to_country\nLIMIT CASE WHEN :limit IS NULL OR :limit = '' THEN 100 ELSE :limit END",
                     "title": "Visa Reciprocity Check",
                     "description": "Compares visa requirements between country pairs. Default: from Malaysia (MY). Parameters: from_country and to_country using country codes (e.g., 'US').",
                     "params": [
