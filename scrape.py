@@ -1,15 +1,15 @@
-import sqlite3
 import json
+import sqlite3
 from datetime import datetime
+from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
-from urllib.error import URLError, HTTPError
-
 
 API_BASE_URL = "https://api.henleypassportindex.com/api/v3"
 DB_NAME = "data/passportindex.db"
 
 
-def setup_database():
+def setup_database() -> None:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
 
@@ -48,18 +48,20 @@ def setup_database():
         """)
 
 
-def fetch_data(url):
+def fetch_data(url: str) -> Any:
     try:
         with urlopen(url) as response:
-            return json.loads(response.read().decode())
+            data = response.read().decode()
+            return json.loads(data)
     except HTTPError as e:
         print(f"HTTP Error {e.code}: {e.reason}")
+        raise
     except URLError as e:
         print(f"URL Error: {e.reason}")
-    return None
+        raise
 
 
-def fetch_countries():
+def fetch_countries() -> list[dict[str, Any]]:
     """
     Fetches the list of all countries from the Henley Passport Index API.
 
@@ -69,7 +71,7 @@ def fetch_countries():
     Returns:
     list: A list of dictionaries, each containing country information.
 
-    Example response:
+    Example:
     [
         {
             "code": "AF",
@@ -100,7 +102,7 @@ def fetch_countries():
     return data
 
 
-def fetch_visa_single(country_code):
+def fetch_visa_single(country_code: str) -> dict[str, Any]:
     """
     Fetches visa requirement data for a single country from the Henley Passport Index API.
 
@@ -113,7 +115,7 @@ def fetch_visa_single(country_code):
     Returns:
     dict: A dictionary containing visa requirement information for the specified country.
 
-    Example response:
+    Example:
     {
         "code": "SG",
         "country": "Singapore",
@@ -145,7 +147,7 @@ def fetch_visa_single(country_code):
     return response
 
 
-def insert_country_data(country):
+def insert_country_data(country: dict[str, Any]) -> int:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
 
@@ -165,7 +167,7 @@ def insert_country_data(country):
         ranking_data = country.get("data")
 
         # NOTE: if a country does not have any ranking data, the API returns [] instead of {}
-        if isinstance(ranking_data, list):
+        if not ranking_data:
             return 0
 
         for year, data in ranking_data.items():
@@ -195,7 +197,7 @@ def insert_country_data(country):
         return insert_count
 
 
-def insert_visa_requirements(from_country_code, visa_data):
+def insert_visa_requirements(from_country_code, visa_data) -> int:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         current_date = datetime.now().date().isoformat()
@@ -237,18 +239,18 @@ def insert_visa_requirements(from_country_code, visa_data):
         return insert_count
 
 
-def main():
+def main() -> None:
     setup_database()
-    countries = fetch_countries()
+    countries: list[dict[str, Any]] = fetch_countries()
 
     new_country_ranking_count = 0
     new_visa_requirement_count = 0
 
     for country in countries:
-        rankings = insert_country_data(country)
+        rankings: int = insert_country_data(country)
         new_country_ranking_count += rankings
 
-        visa_data = fetch_visa_single(country["code"])
+        visa_data: dict[str, Any] = fetch_visa_single(country["code"])
         if visa_data:
             new_visa_requirement_count += insert_visa_requirements(
                 country["code"], visa_data
