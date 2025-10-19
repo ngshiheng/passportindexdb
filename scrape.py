@@ -147,9 +147,13 @@ def fetch_visa_single(country_code: str) -> dict[str, Any]:
     return response
 
 
-def insert_country_data(country: dict[str, Any]) -> int:
+def insert_country_data(country_data: dict[str, Any]) -> int:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
+
+        country_code = country_data["code"]
+        country = country_data["country"]
+        region = country_data.get("region")
 
         cursor.execute(
             """
@@ -157,47 +161,57 @@ def insert_country_data(country: dict[str, Any]) -> int:
             VALUES (?, ?, ?)
             """,
             (
-                country["code"],
-                country["country"],
-                country.get("region"),
+                country_code,
+                country,
+                region,
             ),
         )
 
         insert_count = 0
-        ranking_data = country.get("data")
+        ranking_data = country_data.get("data")
 
         # NOTE: if a country does not have any ranking data, the API returns [] instead of {}
         if not ranking_data:
             return 0
 
         for year, data in ranking_data.items():
-            # Check if the record already exists
             cursor.execute(
-                "SELECT 1 FROM CountryRanking WHERE country_code = ? AND year = ?",
-                (country["code"], int(year)),
+                "SELECT rank, visa_free_count FROM CountryRanking WHERE country_code = ? AND year = ?",
+                (country_code, int(year)),
             )
-            record_exists = cursor.fetchone() is not None
-            if not record_exists:
-                cursor.execute(
-                    """
-                    INSERT INTO CountryRanking (country_code, year, rank, visa_free_count)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        country["code"],
-                        int(year),
-                        data.get("rank"),
-                        data.get("visa_free_count"),
-                    ),
-                )
+            existing = cursor.fetchone()
 
+            new_rank = data.get("rank")
+            new_visa_free_count = data.get("visa_free_count")
+
+            # Always insert or replace the record
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO CountryRanking (country_code, year, rank, visa_free_count)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    country_code,
+                    int(year),
+                    new_rank,
+                    new_visa_free_count,
+                ),
+            )
+
+            if existing is None:
+                print(f"Inserted new ranking: {country_code} ({year})")
                 insert_count += 1
-                print(f"Inserted new ranking: {country['code']} ({year})")
+
+            elif existing != (new_rank, new_visa_free_count):
+                print(
+                    f"Updated ranking: {country_code} ({year}) - Rank: {existing[0]} → {new_rank}, Visa-free: {existing[1]} → {new_visa_free_count}"
+                )
+                insert_count += 1
 
         return insert_count
 
 
-def insert_visa_requirements(from_country_code, visa_data) -> int:
+def insert_visa_requirements(from_country_code: str, visa_data: dict[str, Any]) -> int:
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         current_date = datetime.now().date().isoformat()
@@ -208,6 +222,7 @@ def insert_visa_requirements(from_country_code, visa_data) -> int:
                 continue
 
             for to_country in countries:
+                to_counter_code = to_country["code"]
                 cursor.execute(
                     """
                     SELECT requirement_type
@@ -216,7 +231,7 @@ def insert_visa_requirements(from_country_code, visa_data) -> int:
                     ORDER BY effective_date DESC
                     LIMIT 1
                     """,
-                    (from_country_code, to_country["code"]),
+                    (from_country_code, to_counter_code),
                 )
 
                 result = cursor.fetchone()
@@ -228,7 +243,7 @@ def insert_visa_requirements(from_country_code, visa_data) -> int:
                         INSERT INTO VisaRequirement (from_country, to_country, effective_date, requirement_type)
                         VALUES (?, ?, ?, ?)
                         """,
-                        (from_country_code, to_country["code"], current_date, req_type),
+                        (from_country_code, to_counter_code, current_date, req_type),
                     )
 
                     insert_count += 1
