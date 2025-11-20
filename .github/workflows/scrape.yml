@@ -19,7 +19,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Check out this repo
-              uses: actions/checkout@v5
+              uses: actions/checkout@v6
 
             - name: Set up python
               uses: actions/setup-python@v6
@@ -79,7 +79,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Check out this repo
-              uses: actions/checkout@v5
+              uses: actions/checkout@v6
 
             - name: Get Latest Deployment ID
               id: get-deployment
