@@ -59,19 +59,19 @@
             },
             "tables": {
                 "Country": {
-                    "allow": false,
+                    "allow": { "id": "root" },
                     "sortable_columns": ["code", "name", "region"],
                     "facets": ["region"],
                     "description": "Information about countries included in the passport index"
                 },
                 "CountryRanking": {
-                    "allow": false,
+                    "allow": { "id": "root" },
                     "sortable_columns": ["country_code", "year", "rank", "visa_free_count"],
                     "facets": ["year"],
                     "description": "Annual rankings and visa-free travel counts for countries"
                 },
                 "VisaRequirement": {
-                    "allow": false,
+                    "allow": { "id": "root" },
                     "sortable_columns": ["from_country", "to_country", "effective_date", "requirement_type"],
                     "facets": ["requirement_type", "effective_date"],
                     "description": "Visa requirements between countries"
