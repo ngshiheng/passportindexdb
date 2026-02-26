@@ -37,7 +37,7 @@ jobs:
 
             # Download the artifact (our SQLite DB!) from the last run
             - name: Download artifact
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: passport-index-db
                   path: ./data/
@@ -52,7 +52,7 @@ jobs:
               run: python3 scrape.py
 
             - name: Upload updated artifact
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: passport-index-db # Name of the artifact to upload, make sure to match the name in the download step
                   path: ./data/passportindex.db
