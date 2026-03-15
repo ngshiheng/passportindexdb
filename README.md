@@ -13,7 +13,7 @@ graph TB
     end
     subgraph GitHub
         subgraph Actions
-            scraper[scrape.py]
+            scraper[Passport DB]
         end
         subgraph Artifacts
             db[(passportindex.db)]
@@ -23,15 +23,20 @@ graph TB
     subgraph Henley Passport Index
         api[API]
     end
-    subgraph DockerHub
+    subgraph Docker
         dockerhub[Docker Hub]
+    end
+    subgraph Kaggle
+        kaggle[Dataset]
     end
     db --> |1: Download| scraper
     api --> |2: Fetch Data| scraper
     scraper --> |3: Upload| db
     scraper --> |4: Publish to Docker Hub| dockerhub
-    dockerhub --> |5: Pull Image and Deploy| deployment
-    deployment --> |6: View/Access Data| client[User]
+    scraper --> |5: Publish to Kaggle| kaggle
+    dockerhub --> |6: Pull image and Deploy| deployment
+    deployment --> |7: View/Access Data| client[User]
+    kaggle --> |7: View/Access Data| client[User]
 ```
 
 ## Database Schema
@@ -70,6 +75,15 @@ To run the script locally and update the database:
 
 ```bash
 python3 scrape.py
+```
+
+To upload the generated data/ to Kaggle (uses kaggle/dataset-metadata.json and kaggle/kernel-metadata.json):
+
+```bash
+pip install kaggle
+export KAGGLE_API_TOKEN=foobar
+export KAGGLE_USERNAME=foobar
+python3 export_kaggle.py
 ```
 
 ## License
