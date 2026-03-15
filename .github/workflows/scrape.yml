@@ -15,7 +15,7 @@ on:
         - cron: "0 0 * * 0" # At 00:00 on Sunday
 
 jobs:
-    scrape-and-build:
+    scrape-build-export:
         runs-on: ubuntu-latest
         steps:
             - name: Check out this repo
@@ -58,9 +58,9 @@ jobs:
                   path: ./data/passportindex.db
                   if-no-files-found: error
 
-            - name: Install datasette
+            - name: Install datasette and kaggle
               run: |
-                  pipx install datasette
+                  pipx install datasette kaggle
 
             - name: Login to Docker Hub
               uses: docker/login-action@v4
@@ -73,6 +73,25 @@ jobs:
 
             - name: Push Docker image
               run: make docker-push
+
+            - name: Export Kaggle CSVs
+              run: |
+                  make kaggle-export
+
+            - name: Verify Kaggle CSVs
+              run: |
+                  ls -la data || true
+                  wc -l data/*.csv || true
+
+            - name: Upload dataset to Kaggle
+              env:
+                  KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+                  KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+              run: |
+                  # INITIAL STEP: run locally once:
+                  # kaggle datasets create -p kaggle
+                  # After initial creation, this will push new versions:
+                  make kaggle-push
 
     deploy:
         needs: scrape-and-build
@@ -126,27 +145,3 @@ jobs:
                     echo "Error in API response"
                     exit 1
                   fi
-
-            - name: Install Kaggle CLI
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install kaggle
-
-            - name: Export Kaggle CSVs
-              run: |
-                  make kaggle-export
-
-            - name: Verify Kaggle CSVs
-              run: |
-                  ls -la data || true
-                  wc -l data/*.csv || true
-
-            - name: Upload dataset to Kaggle
-              env:
-                  KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-                  KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-              run: |
-                  # INITIAL STEP: run locally once:
-                  # kaggle datasets create -p kaggle
-                  # After initial creation, this will push new versions:
-                  make kaggle-push
