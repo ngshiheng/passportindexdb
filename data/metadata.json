@@ -1,8 +1,8 @@
 {
     "title": "Passport Index Database",
     "description": "Tracking historical changes in passport rankings and visa requirements.",
-    "license": "MIT",
-    "license_url": "https://github.com/ngshiheng/passportindexdb/blob/main/LICENSE",
+    "license": "CC-BY-NC-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
     "source": "Henley Passport Index",
     "source_url": "https://www.henleyglobal.com/passport-index",
     "databases": {
