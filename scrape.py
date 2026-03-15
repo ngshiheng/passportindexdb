@@ -5,8 +5,18 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+API_VERSION = 1
 API_BASE_URL = "https://api.henleypassportindex.com/api/v3"
+
 DB_NAME = "data/passportindex.db"
+
+REQUIREMENT_TYPES = {
+    "visa_free_access",
+    "visa_required",
+    "electronic_travel_authorisation",
+    "visa_on_arrival",
+    "visa_online",
+}
 
 
 def setup_database() -> None:
@@ -117,6 +127,7 @@ def fetch_visa_single(country_code: str) -> dict[str, Any]:
 
     Example:
     {
+        "version": 1,
         "code": "SG",
         "country": "Singapore",
         "visa_free_access": [
@@ -217,8 +228,12 @@ def insert_visa_requirements(from_country_code: str, visa_data: dict[str, Any]) 
         current_date = datetime.now().date().isoformat()
         insert_count = 0
 
+        version = visa_data.get("version")
+        if version and version != API_VERSION:
+            print(f"API version changed from {API_VERSION} to {version}")
+
         for req_type, countries in visa_data.items():
-            if req_type in ("code", "country"):
+            if req_type not in REQUIREMENT_TYPES:
                 continue
 
             for to_country in countries:
