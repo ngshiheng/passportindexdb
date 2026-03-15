@@ -12,7 +12,7 @@ on:
 
     workflow_dispatch: # This allows us to trigger manually from the GitHub Actions UI
     schedule:
-        - cron: "0 0 1,15 * *" # Scheduled at 00:00 on day-of-month 1 and 15
+        - cron: "0 0 * * 0" # At 00:00 on Sunday
 
 jobs:
     scrape-and-build:
@@ -107,7 +107,7 @@ jobs:
                   echo "Found deployment ID: $DEPLOYMENT_ID"
                   echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
 
-            - name: Trigger Redeployment
+            - name: Trigger redeployment
               run: |
                   echo "Triggering redeployment for ID: ${{ steps.get-deployment.outputs.deployment_id }}"
                   RESPONSE=$(curl --fail-with-body -s -X POST \
@@ -126,3 +126,27 @@ jobs:
                     echo "Error in API response"
                     exit 1
                   fi
+
+            - name: Install Kaggle CLI
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install kaggle
+
+            - name: Export Kaggle CSVs
+              run: |
+                  make kaggle-export
+
+            - name: Verify Kaggle CSVs
+              run: |
+                  ls -la data || true
+                  wc -l data/*.csv || true
+
+            - name: Upload dataset to Kaggle
+              env:
+                  KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+                  KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+              run: |
+                  # INITIAL STEP: run locally once:
+                  # kaggle datasets create -p kaggle
+                  # After initial creation, this will push new versions:
+                  make kaggle-push
