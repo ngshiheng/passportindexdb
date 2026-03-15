@@ -16,3 +16,6 @@ wheels/
 
 # Datasette
 data/inspect.json
+
+# Generated CSVs
+*.csv
