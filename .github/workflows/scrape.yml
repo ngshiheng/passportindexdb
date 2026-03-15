@@ -45,8 +45,8 @@ jobs:
                   github-token: ${{ secrets.GH_PAT  }} # REQUIRED. See https://github.com/actions/download-artifact?tab=readme-ov-file#download-artifacts-from-other-workflow-runs-or-repositories
               continue-on-error: false
 
-            - name: Verify downloaded file
-              run: ls -la data || true
+            - name: Display downloaded file
+              run: ls -la data
 
             - name: Run scrape.py
               run: python3 scrape.py
@@ -80,8 +80,8 @@ jobs:
 
             - name: Verify Kaggle CSVs
               run: |
-                  ls -la data || true
-                  wc -l data/*.csv || true
+                  ls -la kaggle
+                  wc -l kaggle/*.csv
 
             - name: Upload dataset to Kaggle
               env:

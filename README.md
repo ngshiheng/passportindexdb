@@ -1,4 +1,4 @@
-# Passport DB
+# Passport Index DB
 
 Tracking historical changes in passport rankings and visa requirements.
 
@@ -13,7 +13,7 @@ graph TB
     end
     subgraph GitHub
         subgraph Actions
-            scraper[Passport DB]
+            scraper[Scraper]
         end
         subgraph Artifacts
             db[(passportindex.db)]
