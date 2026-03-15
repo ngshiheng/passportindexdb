@@ -84,7 +84,7 @@
         }
     },
     "about": "Made by jerrynsh.com",
-    "about_url": "https://jerrynsh.com/",
+    "about_url": "https://jerrynsh.com/i-built-a-visa-requirement-change-tracker-for-fun/",
     "plugins": {
         "datasette-block-robots": {
             "allow_only_index": true

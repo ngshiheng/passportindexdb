@@ -2,6 +2,8 @@
 
 Tracking historical changes in passport rankings and visa requirements.
 
+[Read more...](https://jerrynsh.com/i-built-a-visa-requirement-change-tracker-for-fun/)
+
 ## How This Works
 
 ```mermaid
