@@ -1,0 +1,13 @@
+{
+    "id": "ngshiheng/henley-passport-index-eda",
+    "title": "Henley Passport Index — EDA",
+    "code_file": "eda.ipynb",
+    "language": "python",
+    "kernel_type": "notebook",
+    "is_private": false,
+    "enable_gpu": false,
+    "enable_internet": false,
+    "dataset_sources": ["ngshiheng/henley-passport-index-visa-requirements"],
+    "competition_sources": [],
+    "kernel_sources": []
+}
