@@ -45,8 +45,8 @@ jobs:
                   github-token: ${{ secrets.GH_PAT  }} # REQUIRED. See https://github.com/actions/download-artifact?tab=readme-ov-file#download-artifacts-from-other-workflow-runs-or-repositories
               continue-on-error: false
 
-            - name: Display downloaded file
-              run: ls data/
+            - name: Verify downloaded file
+              run: ls -la data || true
 
             - name: Run scrape.py
               run: python3 scrape.py

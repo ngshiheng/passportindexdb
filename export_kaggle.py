@@ -15,7 +15,7 @@ import os
 import sqlite3
 
 DB_PATH = "data/passportindex.db"
-OUTPUT_DIR = "data"
+OUTPUT_DIR = "kaggle"
 
 
 def export_countries(cursor: sqlite3.Cursor) -> int:

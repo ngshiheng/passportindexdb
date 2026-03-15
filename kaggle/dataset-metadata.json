@@ -1,0 +1,52 @@
+{
+    "title": "Global Passport Power Rankings & Visa Requirements",
+    "id": "ngshiheng/henley-passport-index-visa-requirements",
+    "subtitle": "Full visa matrix for 227 countries, updated regularly.",
+    "description": "Singapore holds the world's most powerful passport in 2026 with visa-free access to 192 destinations. This dataset maps the complete visa requirement landscape between every country pair — 227 ranked countries, 45,000+ directional visa rules, sourced from the Henley Passport Index. Includes country reference data, current-year rankings, and the full origin-to-destination visa requirement matrix. Source: Henley Passport Index — https://www.henleyglobal.com/passport-index/",
+    "licenses": [
+        {
+            "name": "CC-BY-NC-4.0"
+        }
+    ],
+    "keywords": ["travel", "tabular", "politics", "government", "global"],
+    "resources": [
+        {
+            "path": "countries.csv",
+            "description": "Reference table of 227 countries/territories with ISO 2-letter codes and world regions.",
+            "schema": {
+                "fields": [
+                    { "name": "country_code", "title": "Country code (ISO 3166-1 alpha-2)" },
+                    { "name": "country_name", "title": "Country name" },
+                    { "name": "region", "title": "World region" }
+                ]
+            }
+        },
+        {
+            "path": "passport_rankings.csv",
+            "description": "Current-year passport power rankings. One row per country with global rank and visa-free destination count.",
+            "schema": {
+                "fields": [
+                    { "name": "country_code", "title": "Country code (ISO 3166-1 alpha-2)" },
+                    { "name": "country_name", "title": "Country name" },
+                    { "name": "region", "title": "World region" },
+                    { "name": "year", "title": "Ranking year" },
+                    { "name": "rank", "title": "Global rank" },
+                    { "name": "visa_free_count", "title": "Number of visa-free destinations" }
+                ]
+            }
+        },
+        {
+            "path": "visa_requirements.csv",
+            "description": "Visa requirement for every country pair (~45,000 rows). Types: visa_free_access, visa_required, visa_on_arrival, visa_online, electronic_travel_authorisation.",
+            "schema": {
+                "fields": [
+                    { "name": "from_country_code", "title": "Origin country code (ISO 3166-1 alpha-2)" },
+                    { "name": "from_country_name", "title": "Origin country name" },
+                    { "name": "to_country_code", "title": "Destination country code (ISO 3166-1 alpha-2)" },
+                    { "name": "to_country_name", "title": "Destination country name" },
+                    { "name": "requirement_type", "title": "Visa requirement type" }
+                ]
+            }
+        }
+    ]
+}
