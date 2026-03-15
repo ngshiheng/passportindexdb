@@ -2,7 +2,7 @@
     "title": "Global Passport Power Rankings & Visa Requirements",
     "id": "ngshiheng/henley-passport-index-visa-requirements",
     "subtitle": "Full visa matrix for 227 countries, updated weekly.",
-    "description": "Singapore holds the world's most powerful passport in 2026 with visa-free access to 192 destinations. This dataset maps the complete visa requirement landscape between every country pair — 227 ranked countries, 45,000+ directional visa rules, sourced from the Henley Passport Index. Includes country reference data, current-year rankings, and the full origin-to-destination visa requirement matrix. Source: Henley Passport Index — https://www.henleyglobal.com/passport-index/",
+    "description": "This dataset maps visa requirements between every country pair (227 countries, 45,000+ directional rules) from the Henley Passport Index.\n\nContents\n- countries.csv — ISO 3166-1 alpha-2 codes and region\n- passport_rankings.csv — yearly rank and visa-free destination count\n- visa_requirements.csv — origin→destination requirement_type: visa_free_access, visa_required, visa_on_arrival, visa_online, electronic_travel_authorisation",
     "licenses": [
         {
             "name": "CC-BY-NC-4.0"
