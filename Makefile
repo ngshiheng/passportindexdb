@@ -50,6 +50,16 @@ docker-push:	## build and push docker images to registry.
 	docker push $(IMAGE_NAME):$(TAG_DATE)
 	docker push $(IMAGE_NAME):latest
 
+##@ Kaggle
+.PHONY: kaggle-export
+kaggle-export:## export Kaggle dataset CSVs into data/ directory.
+	@$(PYTHON) export_kaggle.py
+
+.PHONY: kaggle-push
+kaggle-push: kaggle-export## export and upload dataset to Kaggle.
+	@command -v kaggle >/dev/null 2>&1 || { echo "kaggle CLI not found. Install with: pip install kaggle"; exit 1; }
+	@kaggle datasets version -p kaggle -m "chore(data): update generated csv $$(date -u +%Y-%m-%d)"
+
 ##@ Contributing
 .PHONY: setup-dev
 setup-dev:	## install development dependencies including required Datasette plugins.
