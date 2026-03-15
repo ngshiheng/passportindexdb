@@ -94,7 +94,7 @@ jobs:
                   make kaggle-push
 
     deploy:
-        needs: scrape-and-build
+        needs: scrape-build-export
         runs-on: ubuntu-latest
         steps:
             - name: Check out this repo
