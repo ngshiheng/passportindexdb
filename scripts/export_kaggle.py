@@ -7,7 +7,7 @@ Exports:
 - visa_requirements.csv  — Current visa requirement snapshot (latest per pair)
 
 Usage:
-    python export_kaggle.py
+    python scripts/export_kaggle.py
 """
 
 import csv
