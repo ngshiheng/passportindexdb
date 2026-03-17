@@ -69,21 +69,30 @@ erDiagram
 
 ## Usage
 
-### Running the Script
+```sh
+❯ make
+Welcome to passportindexdb [development].
+Use make <target> where <target> is one of:
 
-To run the script locally and update the database:
+Helper
+  help             display this help message.
 
-```bash
-python3 scrape.py
-```
+Usage
+  run              run scraper.
+  inspect          generate inspect file for performance optimization.
+  datasette        run datasette with optimizations.
+  test             run unit tests.
 
-To upload the generated data/ to Kaggle (uses kaggle/dataset-metadata.json and kaggle/kernel-metadata.json):
+Docker
+  docker-build     build datasette docker image.
+  docker-push      build and push docker images to registry.
 
-```bash
-pip install kaggle
-export KAGGLE_API_TOKEN=foobar
-export KAGGLE_USERNAME=foobar
-python3 export_kaggle.py
+Kaggle
+  kaggle-export    export Kaggle dataset CSVs into data/ directory.
+  kaggle-push      export and upload dataset to Kaggle.
+
+Contributing
+  setup-dev        install development dependencies including required Datasette plugins
 ```
 
 ## License

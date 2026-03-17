@@ -2,9 +2,10 @@ NAME := passportindexdb
 ENVIRONMENT ?= development
 
 SHELL=/bin/bash
-PYTHON := $(shell command -v python 2> /dev/null)
-DOCKER := $(shell command -v docker 2> /dev/null)
 DATASETTE := $(shell command -v datasette 2> /dev/null)
+DOCKER := $(shell command -v docker 2> /dev/null)
+KAGGLE := $(shell command -v kaggle 2> /dev/null)
+PYTHON := $(shell command -v python 2> /dev/null)
 SQLITE_FILE = data/passportindex.db
 
 .DEFAULT_GOAL := help
@@ -19,6 +20,10 @@ help:   ## display this help message.
 run:    ## run scraper.
 	@$(PYTHON) scrape.py
 
+.PHONY: test
+test:   ## run unit tests.
+	@$(PYTHON) -m unittest discover -v -q
+
 .PHONY: inspect
 inspect:    ## generate inspect file for performance optimization.
 	@[ -f $(SQLITE_FILE) ] && echo "File $(SQLITE_FILE) exists." || { echo "File $(SQLITE_FILE) does not exist." >&2; exit 1; }
@@ -32,10 +37,6 @@ datasette:  ## run datasette with optimizations.
 	@if [ ! -f data/inspect.json ]; then $(MAKE) inspect; fi
 	@$(DATASETTE) -i $(SQLITE_FILE) --inspect-file=data/inspect.json --setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000 --metadata data/metadata.json --root
 
-.PHONY: test
-test:   ## run unit tests.
-	@$(PYTHON) -m unittest discover -v
-
 ##@ Docker
 IMAGE_NAME := ngshiheng/passportindexdb
 TAG_DATE := $(shell date -u +%Y%m%d)
@@ -45,14 +46,14 @@ docker-build:   ## build datasette docker image.
 	@[ -f $(SQLITE_FILE) ] && echo "File $(SQLITE_FILE) exists." || { echo "File $(SQLITE_FILE) does not exist." >&2; exit 1; }
 	@if [ -z $(DOCKER) ]; then echo "Docker could not be found. See https://docs.docker.com/get-docker/"; exit 2; fi
 	@if [ -z $(DATASETTE) ]; then echo "Datasette could not be found. See https://docs.datasette.io/en/stable/installation.html"; exit 2; fi
-	datasette package $(SQLITE_FILE) --extra-options '--setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000' --metadata data/metadata.json --install=datasette-block-robots --install=datasette-vega --install=datasette-gzip --install=datasette-google-analytics --tag $(IMAGE_NAME):$(TAG_DATE)
-	datasette package $(SQLITE_FILE) --extra-options '--setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000' --metadata data/metadata.json --install=datasette-block-robots --install=datasette-vega --install=datasette-gzip --install=datasette-google-analytics --tag $(IMAGE_NAME):latest
+	$(DATASETTE) package $(SQLITE_FILE) --extra-options '--setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000' --metadata data/metadata.json --install=datasette-block-robots --install=datasette-vega --install=datasette-gzip --install=datasette-google-analytics --tag $(IMAGE_NAME):$(TAG_DATE)
+	$(DATASETTE) package $(SQLITE_FILE) --extra-options '--setting allow_download off --setting allow_csv_stream off --setting max_csv_mb 1 --setting default_cache_ttl 86400 --setting sql_time_limit_ms 2000' --metadata data/metadata.json --install=datasette-block-robots --install=datasette-vega --install=datasette-gzip --install=datasette-google-analytics --tag $(IMAGE_NAME):latest
 
 .PHONY: docker-push
 docker-push:    ## build and push docker images to registry.
 	@if [ -z $(DOCKER) ]; then echo "Docker could not be found. See https://docs.docker.com/get-docker/"; exit 2; fi
-	docker push $(IMAGE_NAME):$(TAG_DATE)
-	docker push $(IMAGE_NAME):latest
+	@$(DOCKER) push $(IMAGE_NAME):$(TAG_DATE)
+	@$(DOCKER) push $(IMAGE_NAME):latest
 
 ##@ Kaggle
 .PHONY: kaggle-export
@@ -62,7 +63,8 @@ kaggle-export:  ## export Kaggle dataset CSVs into data/ directory.
 .PHONY: kaggle-push
 kaggle-push:    ## export and upload dataset to Kaggle.
 	@command -v kaggle >/dev/null 2>&1 || { echo "kaggle CLI not found. Install with: pip install kaggle"; exit 1; }
-	@kaggle datasets version -p kaggle -m "chore(data): update generated csv $$(date -u +%Y-%m-%d)"
+	@if [ -z $(KAGGLE) ]; then echo "Kaggle could not be found. Run pip install kaggle"; exit 2; fi
+	@$(KAGGLE) datasets version -p kaggle -m "chore(data): update generated csv $$(date -u +%Y-%m-%d)"
 
 
 ##@ Contributing
@@ -70,6 +72,5 @@ kaggle-push:    ## export and upload dataset to Kaggle.
 setup-dev: ## install development dependencies including required Datasette plugins.
 	@if [ -z $(DATASETTE) ]; then echo "Installing Datasette..."; pip install datasette; fi
 	@echo "Installing required Datasette plugins..."
-	@pip install datasette-block-robots datasette-vega datasette-gzip datasette-google-analytics
-	@mkdir -p plugins
+	@pip install datasette-block-robots datasette-vega datasette-gzip datasette-google-analytics kaggle
 	@echo "Setup complete! Run 'make datasette' to start local development server."
