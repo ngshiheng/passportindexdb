@@ -10,40 +10,50 @@ on:
             - Makefile
             - data/metadata.json
 
-    workflow_dispatch: # This allows us to trigger manually from the GitHub Actions UI
+    workflow_dispatch:
     schedule:
         - cron: "0 0 * * 0" # At 00:00 on Sunday
+
+concurrency:
+    group: passportindexdb-artifact
+    cancel-in-progress: false
 
 jobs:
     scrape-build-export:
         runs-on: ubuntu-latest
+        permissions:
+            actions: read # allows github.token to list/download artifacts via the API
+            contents: read # required by actions/checkout
         steps:
             - name: Check out this repo
-              uses: actions/checkout@v6
+              uses: actions/checkout@v4
 
             - name: Set up python
-              uses: actions/setup-python@v6
+              uses: actions/setup-python@v5
               with:
                   python-version: 3.14
 
-            # Step to get the latest artifact run ID
-            # Fetch the latest artifact run ID using GitHub API and jq
-            # Save the run ID as an environment variable
-            # If your repository is set to private, an OAuth app token or personal access token (classic) with repo scope is required
             - name: Get latest artifact run id
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
-                  ARTIFACT_RUN_ID=$(curl -s "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=1" | jq '.artifacts[0].workflow_run.id')
-                  echo "artifact_run_id=$ARTIFACT_RUN_ID" >> $GITHUB_ENV
+                  set -euo pipefail
+                  run_id=$(gh api \
+                    "repos/${{ github.repository }}/actions/artifacts?name=passport-index-db&per_page=1" \
+                    --jq '.artifacts[0].workflow_run.id // empty')
+                  if [[ -n "$run_id" ]]; then
+                    echo "artifact_run_id=$run_id" >> "$GITHUB_ENV"
+                  fi
 
             # Download the artifact (our SQLite DB!) from the last run
             - name: Download artifact
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@v4
               with:
                   name: passport-index-db
                   path: ./data/
                   run-id: ${{ env.artifact_run_id }} # Run ID of the artifact (SQLite DB) uploaded from the last run
-                  github-token: ${{ secrets.GH_PAT  }} # REQUIRED. See https://github.com/actions/download-artifact?tab=readme-ov-file#download-artifacts-from-other-workflow-runs-or-repositories
-              continue-on-error: false
+                  github-token: ${{ github.token }}
+              continue-on-error: true # handles first-ever run (no artifact) and artifact expiry gracefully
 
             - name: Display downloaded file
               run: ls -la data
@@ -51,12 +61,22 @@ jobs:
             - name: Run scrape.py
               run: python3 scrape.py
 
+            - name: Validate DB row counts
+              run: |
+                  COUNT=$(sqlite3 data/passportindex.db "SELECT COUNT(*) FROM VisaRequirement;")
+                  echo "Row count: $COUNT"
+                  if [ "$COUNT" -lt 10000 ]; then
+                    echo "ERROR: Row count $COUNT is below threshold. Aborting upload."
+                    exit 1
+                  fi
+
             - name: Upload updated artifact
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@v4
               with:
-                  name: passport-index-db # Name of the artifact to upload, make sure to match the name in the download step
+                  name: passport-index-db
                   path: ./data/passportindex.db
                   if-no-files-found: error
+                  retention-days: 90
 
             - name: Install datasette and kaggle
               run: |
@@ -86,7 +106,7 @@ jobs:
             - name: Upload dataset to Kaggle
               env:
                   KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-                  KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+                  KAGGLE_KEY: ${{ secrets.KAGGLE_API_TOKEN }}
               run: |
                   # INITIAL STEP: run locally once:
                   # kaggle datasets create -p kaggle
@@ -96,6 +116,8 @@ jobs:
     deploy:
         needs: scrape-build-export
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
         steps:
             - name: Check out this repo
               uses: actions/checkout@v6
