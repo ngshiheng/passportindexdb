@@ -106,7 +106,7 @@ jobs:
             - name: Upload dataset to Kaggle
               env:
                   KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-                  KAGGLE_KEY: ${{ secrets.KAGGLE_API_TOKEN }}
+                  KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
               run: |
                   # INITIAL STEP: run locally once:
                   # kaggle datasets create -p kaggle
