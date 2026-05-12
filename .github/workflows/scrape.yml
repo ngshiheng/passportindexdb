@@ -1,18 +1,9 @@
 name: Scrape latest data
 
 on:
-    push:
-        branches:
-            - "main"
-        paths:
-            - "**.py"
-            - ".github/workflows/**"
-            - Makefile
-            - data/metadata.json
-
-    workflow_dispatch:
     schedule:
         - cron: "0 0 * * 0" # At 00:00 on Sunday
+    workflow_dispatch:
 
 concurrency:
     group: passportindexdb-artifact
@@ -59,7 +50,7 @@ jobs:
               run: ls -la data
 
             - name: Run scrape.py
-              run: python3 scrape.py
+              run: make run
 
             - name: Validate DB row counts
               run: |
