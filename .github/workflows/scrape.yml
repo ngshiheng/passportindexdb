@@ -5,6 +5,10 @@ on:
         - cron: "0 0 * * 0" # At 00:00 on Sunday
     workflow_dispatch:
 
+env:
+    DB_PATH: data/passportindex.db
+    ARTIFACT_NAME: passport-index-db
+
 concurrency:
     group: passportindexdb-artifact
     cancel-in-progress: false
@@ -12,6 +16,7 @@ concurrency:
 jobs:
     scrape-build-export:
         runs-on: ubuntu-latest
+        timeout-minutes: 90
         permissions:
             actions: read # allows github.token to list/download artifacts via the API
             contents: read # required by actions/checkout
@@ -29,8 +34,10 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
+                  # Resolve the run that produced the most recent DB artifact so
+                  # the DB accumulates across runs rather than starting fresh each time.
                   run_id=$(gh api \
-                    "repos/${{ github.repository }}/actions/artifacts?name=passport-index-db&per_page=1" \
+                    "repos/${{ github.repository }}/actions/artifacts?name=${ARTIFACT_NAME}&per_page=1" \
                     --jq '.artifacts[0].workflow_run.id // empty')
                   if [[ -n "$run_id" ]]; then
                     echo "artifact_run_id=$run_id" >> "$GITHUB_ENV"
@@ -38,9 +45,10 @@ jobs:
 
             # Download the artifact (our SQLite DB!) from the last run
             - name: Download artifact
+              if: ${{ env.artifact_run_id != '' }}
               uses: actions/download-artifact@v8
               with:
-                  name: passport-index-db
+                  name: ${{ env.ARTIFACT_NAME }}
                   path: ./data/
                   run-id: ${{ env.artifact_run_id }} # Run ID of the artifact (SQLite DB) uploaded from the last run
                   github-token: ${{ github.token }}
@@ -50,11 +58,19 @@ jobs:
               run: ls -la data
 
             - name: Run scrape.py
-              run: make run
+              run: |
+                  set -euo pipefail
+                  make run
 
             - name: Validate DB row counts
               run: |
-                  COUNT=$(sqlite3 data/passportindex.db "SELECT COUNT(*) FROM VisaRequirement;")
+                  set -euo pipefail
+                  if [ ! -f "$DB_PATH" ]; then
+                    echo "ERROR: $DB_PATH does not exist."
+                    exit 1
+                  fi
+
+                  COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM VisaRequirement;")
                   echo "Row count: $COUNT"
                   if [ "$COUNT" -lt 10000 ]; then
                     echo "ERROR: Row count $COUNT is below threshold. Aborting upload."
@@ -64,8 +80,8 @@ jobs:
             - name: Upload updated artifact
               uses: actions/upload-artifact@v7
               with:
-                  name: passport-index-db
-                  path: ./data/passportindex.db
+                  name: ${{ env.ARTIFACT_NAME }}
+                  path: ${{ env.DB_PATH }}
                   if-no-files-found: error
                   retention-days: 90
 
@@ -107,8 +123,15 @@ jobs:
     deploy:
         needs: scrape-build-export
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         permissions:
             contents: read
+        env:
+            RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+            RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+            RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+            RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+            RAILWAY_API_URL: https://backboard.railway.app/graphql/v2
         steps:
             - name: Check out this repo
               uses: actions/checkout@v6
@@ -116,14 +139,22 @@ jobs:
             - name: Get Latest Deployment ID
               id: get-deployment
               run: |
+                  set -euo pipefail
+                  for secret_name in RAILWAY_TOKEN RAILWAY_PROJECT_ID RAILWAY_ENVIRONMENT_ID RAILWAY_SERVICE_ID; do
+                    if [[ -z "${!secret_name}" ]]; then
+                      echo "ERROR: $secret_name is empty."
+                      exit 1
+                    fi
+                  done
+
                   echo "Fetching latest deployment ID..."
-                  RESPONSE=$(curl --fail-with-body -s -X POST \
+                  RESPONSE=$(curl --fail-with-body -sS --retry 5 --retry-all-errors --retry-delay 2 -X POST \
                     -H "Content-Type: application/json" \
-                    -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+                    -H "Authorization: Bearer $RAILWAY_TOKEN" \
                     -H "User-Agent: GitHub-Actions" \
-                    --url https://backboard.railway.app/graphql/v2 \
+                    --url "$RAILWAY_API_URL" \
                     -d '{
-                      "query": "query deployments { deployments(last: 1, input: { projectId: \"${{ secrets.RAILWAY_PROJECT_ID }}\", environmentId: \"${{ secrets.RAILWAY_ENVIRONMENT_ID }}\", serviceId: \"${{ secrets.RAILWAY_SERVICE_ID }}\", status: { in: [SUCCESS, SLEEPING] } }) { edges { node { id status } } } }",
+                      "query": "query deployments { deployments(last: 1, input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$RAILWAY_SERVICE_ID"'\", status: { in: [SUCCESS, SLEEPING] } }) { edges { node { id status } } } }",
                       "operationName": "deployments"
                     }')
 
@@ -135,18 +166,23 @@ jobs:
                     exit 1
                   fi
 
-                  DEPLOYMENT_ID=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[0].node.id')
+                  DEPLOYMENT_ID=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[0].node.id // empty')
+                  if [[ -z "$DEPLOYMENT_ID" ]]; then
+                    echo "ERROR: No active deployment found. Check Railway IDs or create a successful deployment first."
+                    exit 1
+                  fi
                   echo "Found deployment ID: $DEPLOYMENT_ID"
                   echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
 
             - name: Trigger redeployment
               run: |
+                  set -euo pipefail
                   echo "Triggering redeployment for ID: ${{ steps.get-deployment.outputs.deployment_id }}"
-                  RESPONSE=$(curl --fail-with-body -s -X POST \
+                  RESPONSE=$(curl --fail-with-body -sS --retry 5 --retry-all-errors --retry-delay 2 -X POST \
                     -H "Content-Type: application/json" \
-                    -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+                    -H "Authorization: Bearer $RAILWAY_TOKEN" \
                     -H "User-Agent: GitHub-Actions" \
-                    --url https://backboard.railway.app/graphql/v2 \
+                    --url "$RAILWAY_API_URL" \
                     -d "{
                       \"query\": \"mutation { deploymentRedeploy(id: \\\"${{ steps.get-deployment.outputs.deployment_id }}\\\", usePreviousImageTag: true) { id status } }\"
                     }")
@@ -158,3 +194,10 @@ jobs:
                     echo "Error in API response"
                     exit 1
                   fi
+
+                  NEW_DEPLOYMENT_ID=$(echo "$RESPONSE" | jq -r '.data.deploymentRedeploy.id // empty')
+                  if [[ -z "$NEW_DEPLOYMENT_ID" ]]; then
+                    echo "ERROR: Railway redeploy did not return a deployment id."
+                    exit 1
+                  fi
+                  echo "Redeploy accepted: $NEW_DEPLOYMENT_ID"
