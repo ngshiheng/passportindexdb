@@ -22,7 +22,7 @@ jobs:
             contents: read # required by actions/checkout
         steps:
             - name: Check out this repo
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Set up python
               uses: actions/setup-python@v6
@@ -134,7 +134,7 @@ jobs:
             RAILWAY_API_URL: https://backboard.railway.app/graphql/v2
         steps:
             - name: Check out this repo
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Get Latest Deployment ID
               id: get-deployment
