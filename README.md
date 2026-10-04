@@ -79,7 +79,6 @@ Helper
 
 Usage
   run              run scraper.
-  inspect          generate inspect file for performance optimization.
   datasette        run datasette with optimizations.
   test             run unit tests.
 

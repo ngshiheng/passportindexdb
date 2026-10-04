@@ -14,8 +14,5 @@ wheels/
 *.db-shm
 *.db-wal
 
-# Datasette
-data/inspect.json
-
 # Generated CSVs
 *.csv

@@ -1,0 +1,18 @@
+{
+  "passportindex": {
+    "hash": "aa7c68b10b01ee01186fa7c8d6cea7b3a962e6da68b09ba2dd8ce68d3390d248",
+    "size": 3600384,
+    "file": "data/passportindex.db",
+    "tables": {
+      "Country": {
+        "count": 227
+      },
+      "CountryRanking": {
+        "count": 4149
+      },
+      "VisaRequirement": {
+        "count": 50343
+      }
+    }
+  }
+}
